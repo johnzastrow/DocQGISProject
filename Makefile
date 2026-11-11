@@ -38,7 +38,7 @@ security:
 # Delete caches first: .ruff_cache/CACHEDIR.TAG trips a false "high entropy string".
 leak-scan:
 	rm -rf .ruff_cache .pytest_cache
-	uv run --no-project --with detect-secrets detect-secrets scan --all-files \
+	uv run --no-project --with detect-secrets detect-secrets scan --all-files --exclude-files '^\.git/' \
 	  | python3 -c "import json,sys; r=json.load(sys.stdin)['results']; print(json.dumps(r, indent=2) if r else 'no findings'); sys.exit(1 if r else 0)"
 
 test:
