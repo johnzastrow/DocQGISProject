@@ -76,7 +76,7 @@ def test_markdown_without_redaction_has_banner():
 def test_json_is_strict_and_structured():
     data = json.loads(render_json(_model()))
     assert data["schema"] == "docqgisproject/1"
-    assert set(data) == {"schema", "generator", "options", "semantic", "problems", "redactions", "coverage", "tier_b"}
+    assert set(data) == {"schema", "generator", "options", "semantic", "rebuild", "problems", "redactions", "coverage", "tier_b"}
     lyr = data["semantic"]["layers"][0]
     assert lyr["extent"][3] is None  # NaN became null
     assert data["semantic"]["variables"][0]["value"] == {"redacted": "api_key"}
@@ -98,3 +98,26 @@ def test_json_is_strict_and_structured():
 def test_options_reject_invalid(kwargs):
     with pytest.raises(ValueError):
         DocOptions(**kwargs).validate()
+
+
+def test_rebuild_appendix():
+    m = _model()
+    m.rebuild = {
+        "format": "qgis-project-xml/1",
+        "project_file": "p.qgz",
+        "project_xml": "<qgis/>",
+        "sources": [
+            {"id": "s1", "provider": "ogr", "kind": "file", "uri": "./a.gpkg|layername=a", "layer_ids": ["l1"],
+             "redacted": False, "file": {"path": "./a.gpkg", "exists": False, "size": None, "sha256": None}},
+            {"id": "s2", "provider": "postgres", "kind": "database", "uri": "dbname='g' user='[REDACTED:user]' " + HOSTILE,
+             "layer_ids": ["l2", "l3"], "redacted": True, "file": None},
+        ],
+        "resources": [],
+    }
+    md = render_markdown(m)
+    section = md[md.index("Appendix: rebuilding from the JSON") :]
+    assert "| `s1` | `ogr` | file | 1 | `./a.gpkg` | file missing |" in section
+    assert "needs credentials" in section
+    assert lint_markdown(md) == []
+    m.rebuild = None
+    assert "This run has no rebuild data" in render_markdown(m)

@@ -42,7 +42,7 @@ leak-scan:
 	  | python3 -c "import json,sys; r=json.load(sys.stdin)['results']; print(json.dumps(r, indent=2) if r else 'no findings'); sys.exit(1 if r else 0)"
 
 test:
-	uv run --no-project --with pytest python -m pytest $(UNIT_TEST) -q
+	uv run --no-project --with pytest --with jsonschema==4.23.0 python -m pytest $(UNIT_TEST) -q
 
 # QGIS integration tier: runs under QGIS's own Python (system python3 on Ubuntu).
 # PATH is reset so a Homebrew/uv Python earlier on PATH cannot shadow PyQt6.

@@ -28,6 +28,7 @@ from .collectors.layouts import collect_layouts
 from .collectors.maps import project_overview
 from .collectors.fonts_files import collect_resources
 from .collectors.tier_b import collect_tier_b
+from .collectors.rebuild_payload import collect_rebuild
 from .collectors.project import collect_bookmarks, collect_project, collect_relations, collect_themes, collect_variables
 from .model import DocModel
 from .options import DocOptions
@@ -106,6 +107,8 @@ def collect(project, options, feedback=None, sink=None):
         model.project.overview_image = sink.add_png("images/project_overview.png", image) if image else None
     step("resources", collect_resources, model, os.path.dirname(project.fileName()) if project.fileName() else None)
     step("coverage", collect_tier_b, project, model, options)
+    if "json" in options.formats:
+        step("rebuild", collect_rebuild, project, model, options)
     if not options.redact:
         model.add_problem("warning", "security", "Redaction was turned off: this output may contain credentials.")
     if sink.dropped:

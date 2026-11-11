@@ -582,6 +582,64 @@ def _coverage(doc, model):
 
 
 # Chapter order. Numbers in headings, the contents list and cross-references all derive from it.
+def _source_status(src):
+    if src["kind"] == "file":
+        info = src.get("file") or {}
+        if info.get("exists") is False:
+            return "file missing"
+        return "file found" + (f", {fmt_number(info['size'])} bytes" if info.get("size") is not None else "")
+    if src.get("redacted"):
+        return "needs credentials"
+    return "no action needed" if src["kind"] == "memory" else "check access"
+
+
+def _rebuild(doc, model):
+    doc.heading(2, f"{num('rebuild')}. Appendix: rebuilding from the JSON")
+    rb = model.rebuild
+    if not rb:
+        doc.para(
+            "This run has no rebuild data. It is written with the JSON output, and only for a project saved to a file."
+        )
+        return
+    doc.para(
+        "The JSON file holds the complete project file, so a program can rebuild the project from it. "
+        "Credentials are not in it. Data are not in it either: the rebuilt project points at the same data sources."
+    )
+    doc.para(
+        "To rebuild, open the QGIS Python console, import "
+        + md_code("rebuild_project")
+        + " from "
+        + md_code("DocQGISProject.core.rebuild")
+        + " and call it with this JSON file and a new .qgz file name. "
+        + "If the data have moved, pass "
+        + md_code("source_map")
+        + ", which maps an old folder to a new one. "
+        + "For a source that needs a login, pass "
+        + md_code("auth_map")
+        + ", which maps the source (such as s3) to a QGIS authentication configuration. "
+        + "The rebuilder never overwrites a file, and it removes macros and other Python code."
+    )
+    rows = []
+    for src in rb.get("sources") or []:
+        info = src.get("file") or {}
+        where = info.get("path") if src["kind"] == "file" and info.get("path") else src["uri"]
+        rows.append([
+            md_code(src["id"]),
+            md_code(src["provider"]),
+            src["kind"],
+            fmt_number(len(src["layer_ids"])),
+            md_code(where[:120] + ("..." if len(where) > 120 else "")) if where else "",
+            _source_status(src),
+        ])
+    if rows:
+        doc.table(["Source", "Provider", "Kind", "Layers", "Location", "Status"], rows)
+    files = rb.get("resources") or []
+    if files:
+        doc.para(
+            f"{fmt_number(len(files))} SVG or image files are embedded in the JSON and written beside the new project."
+        )
+
+
 CHAPTERS = [
     ("overview", "Overview", _overview),
     ("recreate", "How to recreate this project", _recreate),
@@ -596,6 +654,7 @@ CHAPTERS = [
     ("resources", "Fonts and files", _resources),
     ("problems", "Warnings and problems", _problems),
     ("coverage", "Appendix: coverage of the project file", _coverage),
+    ("rebuild", "Appendix: rebuilding from the JSON", _rebuild),
 ]
 
 

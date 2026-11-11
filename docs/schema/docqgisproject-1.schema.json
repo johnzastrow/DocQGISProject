@@ -1,0 +1,419 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/johnzastrow/DocQGISProject/blob/main/docs/schema/docqgisproject-1.schema.json",
+  "title": "DocQGISProject documentation of a QGIS project",
+  "description": "Written by the DocQGISProject QGIS plugin (project.json). `semantic` is structured data for analysis; `rebuild` is the lossless payload core/rebuild.py turns back into a project. Credentials are never present: they are replaced by placeholders such as [REDACTED:password] or {\"redacted\": \"password\"}. The plugin's own validator (core/schema.py) enforces this schema's rebuild part plus size limits and hash checks.",
+  "type": "object",
+  "required": [
+    "schema",
+    "generator",
+    "options",
+    "semantic",
+    "rebuild",
+    "problems",
+    "redactions",
+    "coverage",
+    "tier_b"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "docqgisproject/1"
+    },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "plugin": {
+          "type": "string"
+        },
+        "plugin_version": {
+          "type": "string"
+        },
+        "qgis_version": {
+          "type": "string"
+        },
+        "generated_at": {
+          "type": "string"
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "json",
+              "markdown",
+              "html",
+              "pdf"
+            ]
+          }
+        },
+        "detail": {
+          "enum": [
+            "summary",
+            "standard",
+            "full"
+          ]
+        },
+        "redact": {
+          "type": "boolean"
+        },
+        "load_data": {
+          "type": "boolean"
+        },
+        "include_network_layers": {
+          "type": "boolean"
+        },
+        "overwrite": {
+          "type": "boolean"
+        },
+        "images": {
+          "type": "boolean"
+        },
+        "image_dpi": {
+          "type": "integer",
+          "minimum": 48,
+          "maximum": 600
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "required": [
+        "project",
+        "layer_tree",
+        "layers",
+        "relations",
+        "themes",
+        "bookmarks",
+        "variables",
+        "layouts",
+        "resources"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "object"
+        },
+        "layer_tree": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "themes": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "bookmarks": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "layouts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "resources": {
+          "type": "object"
+        }
+      }
+    },
+    "rebuild": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/rebuild"
+        }
+      ]
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity",
+          "section",
+          "message"
+        ],
+        "properties": {
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "section": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "layer_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "redactions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "total_elements": {
+          "type": "integer"
+        },
+        "claimed_elements": {
+          "type": "integer"
+        },
+        "percent_claimed": {
+          "type": "number"
+        },
+        "unclaimed_groups": {
+          "type": "array"
+        }
+      }
+    },
+    "tier_b": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "count"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "rebuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "project_file",
+        "project_xml",
+        "sources",
+        "resources"
+      ],
+      "properties": {
+        "format": {
+          "const": "qgis-project-xml/1"
+        },
+        "project_file": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^/\\\\\\u0000]+$"
+        },
+        "qgis_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "project_xml": {
+          "type": "string",
+          "description": "The saved project XML, redacted, with every layer data source replaced by a token @docqgisproject:source/<id> naming an entry in `sources`."
+        },
+        "sources": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "resources": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": {
+            "$ref": "#/$defs/resource"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "provider",
+        "kind",
+        "uri",
+        "layer_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^s[0-9]{1,6}$"
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "database",
+            "web",
+            "memory",
+            "other"
+          ]
+        },
+        "uri": {
+          "type": "string",
+          "maxLength": 65536,
+          "description": "The data source as QGIS stored it, credentials replaced by [REDACTED:<kind>]."
+        },
+        "layer_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:{}-]{1,200}$"
+          }
+        },
+        "redacted": {
+          "type": "boolean"
+        },
+        "file": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "exists": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref",
+        "size",
+        "sha256",
+        "data_base64"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "The exact attribute value the project XML uses for this file."
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10485760
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "data_base64": {
+          "type": "string",
+          "contentEncoding": "base64"
+        }
+      }
+    }
+  }
+}

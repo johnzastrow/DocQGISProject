@@ -12,7 +12,11 @@ from qgis.PyQt.QtGui import QFontDatabase
 
 # Symbol-layer properties that name a font or a file.
 FONT_PROPS = {"font"}
-FILE_PROPS = {"name": ("SvgMarker",), "svgFile": ("SVGFill",), "imageFile": ("RasterFill", "RasterMarker", "RasterLine")}
+FILE_PROPS = {
+    "name": ("SvgMarker",),
+    "svgFile": ("SVGFill",),
+    "imageFile": ("RasterFill", "RasterMarker", "RasterLine"),
+}
 
 
 def _symbol_resources(symbol, where, fonts, files, depth=0):
@@ -110,10 +114,13 @@ def collect_resources(model, project_dir):
         exists = os.path.exists(local) if local else None
         model.resources["files"].append({"path": path, "exists": exists, "used_by": sorted(users)})
         if exists is False:
-            model.add_problem("warning", "resources", f"File {path} (used by {', '.join(sorted(users))}) was not found.")
+            model.add_problem(
+                "warning", "resources", f"File {path} (used by {', '.join(sorted(users))}) was not found."
+            )
     for f in model.resources["fonts"]:
         if not f["installed"]:
             model.add_problem(
-                "warning", "resources",
+                "warning",
+                "resources",
                 f"Font '{f['family']}' (used by {', '.join(f['used_by'])}) is not installed here; QGIS substitutes another font.",
             )

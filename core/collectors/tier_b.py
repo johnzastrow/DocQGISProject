@@ -119,7 +119,12 @@ def _walk(el, path, stats, depth=0):
         child = nodes.at(i)
         if child.isElement():
             c = child.toElement()
-            _walk(c, f"{path}/{c.tagName()}" if path else c.tagName(), stats, depth + 1)
+            # Project settings are nested <properties name="X"> elements: name the path
+            # segment after X so claims such as "properties/Variables" can match.
+            seg = (
+                c.attribute("name") if c.tagName() == "properties" and path and c.hasAttribute("name") else c.tagName()
+            )
+            _walk(c, f"{path}/{seg}" if path else seg, stats, depth + 1)
         elif child.isText() or child.isCDATASection():
             text += child.toCharacterData().data()
     text = text.strip()

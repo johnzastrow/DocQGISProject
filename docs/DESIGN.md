@@ -203,6 +203,8 @@ figure. Running on a file opens it in a separate `QgsProject` object, never the 
   separates the data location from the secret so a rebuilder can supply its own paths and credentials). Redacted values are
   explicit placeholders (`{"redacted": "password"}`), never silently dropped. Data themselves are not included (non-goal);
   the manifest records path, provider, size and hash so the rebuilder can check what it finds.
+- As built (P5): the project XML is the whole lossless payload. It already contains every layer's style and every
+  layout, so QML and QPT are not repeated inside the JSON (they are still written as files beside the report).
 - `core.rebuild` reads the JSON, validates it against the schema, maps sources (`--map-source old=new`), creates a new
   `QgsProject`, loads layers, applies QML, restores the layer tree, themes, relations and layouts from QPT, and writes the `.qgz`.
 - Round-trip test (R9): fixture project A -> JSON -> rebuilt project B; B's normalised XML must equal A's apart from an allow-list

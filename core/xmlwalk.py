@@ -76,6 +76,73 @@ def active_data_defined(option_map):
     return out
 
 
+def _redact_embedded_xml(value, depth):
+    """Redact XML held in an attribute value. Returns (value, Counter); unparsable text is
+    scanned as plain text instead, so a secret is never skipped."""
+    from collections import Counter
+
+    from qgis.PyQt.QtXml import QDomDocument
+
+    from .redact import redact_text
+
+    doc = QDomDocument()
+    result = doc.setContent(value)
+    ok = result[0] if isinstance(result, tuple) else bool(result)
+    if not ok:
+        return redact_text(value)
+    kinds = Counter(redact_dom(doc, depth + 1))
+    if not kinds:
+        return value, kinds
+    return doc.toString(-1), kinds
+
+
+def _list_items(el):
+    out, children = [], el.childNodes()
+    for i in range(children.count()):
+        c = children.at(i).toElement()
+        if not c.isNull():
+            out.append(c)
+    return out
+
+
+def _item_value(item):
+    return item.attribute("value") if item.hasAttribute("value") else item.text()
+
+
+def _set_item_value(item, value):
+    if item.hasAttribute("value"):
+        item.setAttribute("value", value)
+        return
+    children = item.childNodes()
+    for i in reversed(range(children.count())):
+        item.removeChild(children.at(i))
+    item.appendChild(item.ownerDocument().createTextNode(value))
+
+
+def _redact_variable_lists(el):
+    """Variables (project, layer, layout) are stored as two parallel lists, variableNames and
+    variableValues, so a value never sits next to its name. Pair them and hide a value whose
+    variable name suggests a secret, as the semantic collector does. Returns a Counter."""
+    from collections import Counter
+
+    from .redact import PLACEHOLDER, redact_named_value
+
+    kinds = Counter()
+    lists = {
+        c.attribute("name"): c for c in _list_items(el) if c.attribute("name") in ("variableNames", "variableValues")
+    }
+    if len(lists) != 2:
+        return kinds
+    names = [_item_value(c) for c in _list_items(lists["variableNames"])]
+    for i, item in enumerate(_list_items(lists["variableValues"])):
+        name = names[i] if i < len(names) else ""
+        red, sub = redact_named_value(name, _item_value(item))
+        if sub:
+            _set_item_value(item, PLACEHOLDER.format(kind=red["redacted"]) if isinstance(red, dict) else red)
+            kinds.update(sub)
+    return kinds
+
+
 def redact_dom(node, depth=0):
     """Redact credentials in a QGIS XML document in place. Returns a Counter of kinds.
 
@@ -83,7 +150,8 @@ def redact_dom(node, depth=0):
     such as a symbol layer's pass="0" as a password and corrupt the file. Here
     - text content (datasource URIs, expressions) gets the URI redactor;
     - attribute VALUES are scanned, attribute names never act as keys;
-    - <Option name="password" value="..."> style entries are hidden by name.
+    - <Option name="password" value="..."> style entries are hidden by name;
+    - variables (parallel variableNames / variableValues lists) are hidden by variable name.
     """
     from collections import Counter
 
@@ -92,6 +160,9 @@ def redact_dom(node, depth=0):
     kinds = Counter()
     if depth > 64:
         return kinds
+    el_self = node.toElement()
+    if not el_self.isNull():
+        kinds.update(_redact_variable_lists(el_self))
     children = node.childNodes()
     for i in range(children.count()):
         child = children.at(i)
@@ -116,6 +187,15 @@ def redact_dom(node, depth=0):
             if kind and attr.name() == "value":
                 attr.setValue(PLACEHOLDER.format(kind=kind))
                 kinds[kind] += 1
+            elif value.lstrip().startswith("<"):
+                # An attribute holding serialised XML (a label's lineSymbol, a text_format):
+                # redact it structurally too. The text redactor would read pass="0" inside it
+                # as a password. The value is rewritten only when something was redacted, so
+                # clean values stay byte-identical.
+                red, sub = _redact_embedded_xml(value, depth)
+                if sub:
+                    attr.setValue(red)
+                    kinds.update(sub)
             elif any(c in value for c in "=@:%"):
                 red, sub = redact_text(value)
                 if sub:

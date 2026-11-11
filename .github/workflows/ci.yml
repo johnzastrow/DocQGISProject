@@ -51,7 +51,7 @@ jobs:
             | python -c "import json,sys; r=json.load(sys.stdin)['results']; print(json.dumps(r, indent=2)); sys.exit(1 if r else 0)"
 
       - name: Unit tests
-        run: uv run --no-project --with pytest python -m pytest tests/unit -q
+        run: uv run --no-project --with pytest --with jsonschema==4.23.0 python -m pytest tests/unit -q
 
       - name: Build plugin zip (self-verifying)
         run: bash scripts/build_plugin.sh

@@ -1,12 +1,12 @@
-# Handoff: DocQGISProject (development, P4 done), 2026-11-11
+# Handoff: DocQGISProject (development, P5 done), 2026-11-11
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P1 to P3 pushed; P4 committed locally, not pushed)
+## State (updated 2026-11-11, P1 to P4 pushed; P5 committed locally, not pushed)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
-  decisions below and for Q1, Q2, Q4 to Q7, Q10 (section 12 of the design). Re-confirm before P5 (rebuilder) and P6 (screenshots).
+  decisions below and for Q1, Q2, Q4 to Q7, Q10 (section 12 of the design). The owner re-confirmed the rebuilder design before P5 ("proceed as designed"). Re-confirm before P6 (screenshots).
   1. Ship the rebuilder (`rebuildproject`) in 0.1.
   2. Dialog screenshots off by default; when on, project dialogs plus user-selected layers, all tabs except source and authentication pages.
   3. JSON never holds credentials.
@@ -92,8 +92,37 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
   part), build self-verify OK, engine writes all four formats from the installed zip.
 - Not done: no browser screenshot check of the HTML (verified structurally and by tests); reading-level
   metrics per chapter (design 6b rule 7) not implemented.
-- Next: P5 (rebuild payload in the JSON, JSON Schema in docs/schema/, `core.rebuild`, RebuildProject
-  algorithm logic, round-trip test, hostile-JSON corpus). Still open: GUI click test.
+- P5 delivered (rebuilder usable from the Python console; the Processing algorithm wrapper is P6):
+  - `core/collectors/rebuild_payload.py` fills `model.rebuild` (only when the JSON format is requested):
+    the saved project XML, redacted, each `<datasource>` (and the matching layer-tree `source` attributes)
+    replaced by `@docqgisproject:source/sN`, a `sources` table (file sources hashed, hashes cached per file,
+    512 MB hash cap), and embedded SVG/images (any attribute value ending in an image extension that is a
+    local file; 10 MB each, 20 MB total) with the exact `ref` string the XML uses.
+  - Decision: the project XML is the lossless payload. QML and QPT are NOT duplicated in the JSON (the XML
+    already holds them; the .qml/.qpt files beside the report are for people). Deviation from design
+    section 8 wording, same intent.
+  - `core/schema.py` (pure Python): limits, `load_json_bytes` (duplicate keys, NaN, depth, UTF-8),
+    `validate_rebuild_document` (allowlists, hashes, sizes). QGIS writes
+    `<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>`: exactly that form is allowed, any other
+    DOCTYPE or ENTITY is refused. `docs/schema/docqgisproject-1.schema.json` is the published schema
+    (draft 2020-12); jsonschema is used only in tests (pinned 4.23.0 in the unit tier).
+  - `core/uri_text.py` (pure Python): `strip_redacted`, `map_path`, `is_absolute`, `parse_map_arg`.
+  - `core/rebuild.py`: `rebuild_project(json_or_path, out.qgz, source_map, auth_map, feedback)`. Writes the
+    .qgz itself (zip with `<stem>.qgs`), no `.qgd`; verifies by reading it back with DontResolveLayers.
+    Removes `properties/Macros`, `properties/ExpressionFunctions` (QGIS 4 writes `<properties name="X">`),
+    form-init code, and Python actions (`actionsetting type="1"`).
+  - Fixes found by P5 tests: variables are stored as parallel `variableNames`/`variableValues` lists and
+    were not redacted in XML (`xmlwalk._redact_variable_lists`); serialised XML inside attribute values was
+    text-redacted (`pass="0"` false positive), now parsed (`_redact_embedded_xml`); Tier B paths for
+    `<properties name="X">` now use X, so property claims match (basic 48 %, styling 60 %, layout 86 %,
+    sources 42 %).
+  - JSON sizes on fixtures: 121 KB to 753 KB.
+- P5 verification: `make check` green (155 unit tests incl. 37 hostile-JSON cases), `make qgis-test` 63
+  passed (round trip XML on basic/styling/layout, layout page pixels, sources without credentials, never
+  overwrite, unmapped absolute path, code stripping, hostile JSON leaves no output).
+- Next: P6 (Processing algorithms `documentproject` and `rebuildproject` with SOURCE_MAP and AUTH_MAP as
+  `old=new;...` strings via `uri_text.parse_map_arg`, the dialog, progress and cancel, dialog screenshots).
+  Still open: GUI click test; the Wildlands print project as the manual hard case for the round trip.
 
 ## Owner requirements (verbatim intent)
 

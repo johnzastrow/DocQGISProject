@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Machine output: the DocModel as schema-versioned JSON (docs/DESIGN.md section 8).
 
-P1 writes the `semantic` part. The lossless `rebuild` payload (project XML, QML, QPT,
-embedded resources) is added in phase P5 under the same schema id.
+Two parts: `semantic` (structured, for tools that analyse a project) and `rebuild` (the
+lossless payload: redacted project XML with parameterised sources and embedded SVG/images,
+read by core/rebuild.py). JSON Schema: docs/schema/docqgisproject-1.schema.json.
 """
 
 import json
@@ -39,13 +40,14 @@ SEMANTIC_KEYS = (
 
 
 def model_to_json_dict(model):
-    """{schema, generator, options, semantic, problems, redactions, coverage, tier_b}; `rebuild` comes in P5."""
+    """{schema, generator, options, semantic, rebuild, problems, redactions, coverage, tier_b}."""
     data = _clean(model)
     return {
         "schema": data["schema"],
         "generator": data["generator"],
         "options": data["options"],
         "semantic": {k: data[k] for k in SEMANTIC_KEYS},
+        "rebuild": data["rebuild"],
         "problems": data["problems"],
         "redactions": data["redactions"],
         "coverage": data["coverage"],

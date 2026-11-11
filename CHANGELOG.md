@@ -8,10 +8,30 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- 2026-11-11: The JSON gains a `rebuild` part (P5), and its key list is now `schema, generator,
+  options, semantic, rebuild, problems, redactions, coverage, tier_b`.
 - 2026-11-11: Output files now get normal user-file permissions (0o666 minus the umask,
   usually 644), like any file the user saves. Atomic writes had left them owner-only (600).
 
 ### Added
+
+- 2026-11-11: P5 project rebuilder.
+  - JSON `rebuild` part: the saved project XML (redacted) with every layer data source replaced
+    by a marker and listed in a `sources` table (provider, kind, layers, and for files the path,
+    size and SHA-256), plus the SVG and image files that styles and layouts use, embedded with
+    their hashes (10 MB each, 20 MB in total). Data are never included.
+  - JSON Schema for the whole document: `docs/schema/docqgisproject-1.schema.json`.
+  - `core.rebuild.rebuild_project(json, new.qgz, source_map=..., auth_map=...)` writes a new
+    project. The JSON is treated as untrusted: it is validated in full first (sizes, names,
+    hashes, no DOCTYPE other than QGIS's own, no undeclared sources); macros, project expression
+    functions, Python form-init code and Python layer actions are removed and reported; absolute
+    data paths must be mapped; nothing is overwritten; embedded files go only into
+    `<name>_files/`; the result is read back by QGIS (layers unresolved) before it is accepted.
+  - Credentials are not guessed: parameters that held a redacted value are dropped, and
+    `auth_map` attaches a QGIS authentication configuration to a source instead.
+  - Report appendix "Rebuilding from the JSON" with the sources table and what each needs.
+  - Round-trip tests: the basic and styling fixtures come back with identical project XML, the
+    layout fixture differs only in the repointed picture path, and its pages render the same.
 
 - 2026-11-11: P4 HTML and PDF reports. All four formats are written by default
   (`project.json`, `report.md`, `report.html`, `report.pdf`).
@@ -59,6 +79,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- 2026-11-11: Variables (project, layer and layout) are stored as two parallel name and value
+  lists, so XML redaction never saw a value next to its name: a secret-named variable such as
+  `service_token` kept its value in the XML-based outputs (Tier B samples did not include it, but
+  the new rebuild payload would have). Values are now paired with their names and hidden.
+- 2026-11-11: XML redaction read serialised XML inside attribute values (a label's line symbol,
+  a text format) as text and turned `pass="0"` into a password placeholder, corrupting the value.
+  Such values are now parsed and redacted structurally, and left byte-identical when clean.
+- 2026-11-11: Coverage: project settings are nested `<properties name="X">` elements in QGIS 4, so
+  claims such as `properties/Variables` never matched. Paths now use the setting name.
 - Fixture layouts set map extents before sizing the map items, so every map drew nothing; maps
   are now sized first and use `zoomToExtent`.
 

@@ -65,7 +65,7 @@ jobs:
       # own Python and does not belong in this job.
       - name: Unit tests
         run: |
-          uv run --no-project --with pytest python -m pytest tests/unit -q
+          uv run --no-project --with pytest --with jsonschema==4.23.0 python -m pytest tests/unit -q
 
       - name: Build plugin zip
         run: bash scripts/build_plugin.sh
