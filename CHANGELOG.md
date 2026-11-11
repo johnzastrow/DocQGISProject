@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- 2026-11-11: Output files now get normal user-file permissions (0o666 minus the umask,
+  usually 644), like any file the user saves. Atomic writes had left them owner-only (600).
+
 ### Added
 
 - 2026-11-11: P4 HTML and PDF reports. All four formats are written by default

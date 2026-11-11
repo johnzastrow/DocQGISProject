@@ -8,7 +8,9 @@ Rules (docs/DESIGN.md section 9):
 - symlinks are never followed or replaced;
 - an existing file is overwritten only if this plugin wrote it before (recorded in a
   manifest in the folder) or the user chose "overwrite";
-- writes are atomic (temporary file in the same folder, then os.replace).
+- writes are atomic (temporary file in the same folder, then os.replace);
+- written files get normal user-file permissions (0o666 minus the process umask), the same
+  as any file the user saves; mkstemp alone would leave them owner-only (0o600).
 """
 
 import json
@@ -19,6 +21,23 @@ from pathlib import Path
 
 MANIFEST_NAME = ".docqgisproject-manifest.json"
 _SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+
+
+def _current_umask():
+    """The process umask. Read from /proc on Linux (no side effects); otherwise set and restore."""
+    try:
+        with open("/proc/self/status", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("Umask:"):
+                    return int(line.split()[1], 8)
+    except (OSError, ValueError):
+        pass
+    old = os.umask(0o022)
+    os.umask(old)
+    return old
+
+
+FILE_MODE = 0o666 & ~_current_umask()
 _RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} | {f"lpt{i}" for i in range(1, 10)}
 
 
@@ -109,6 +128,7 @@ class OutputFolder:
         try:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(data)
+            os.chmod(tmp, FILE_MODE)  # mkstemp creates 0o600; match a normally saved file
             os.replace(tmp, target)
         except BaseException:
             try:

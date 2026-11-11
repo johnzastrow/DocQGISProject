@@ -70,3 +70,16 @@ def test_check_writable_fails_before_writing(tmp_path):
     with pytest.raises(OutputExistsError):
         out.check_writable(["report.md", "project.json"])
     assert not (tmp_path / "report.md").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")
+def test_written_files_follow_umask(tmp_path):
+    from core.safe_paths import FILE_MODE
+
+    old = os.umask(0o022)
+    os.umask(old)
+    assert FILE_MODE == 0o666 & ~old
+    out = OutputFolder(str(tmp_path))
+    path = out.write_text("report.md", "x")
+    assert os.stat(path).st_mode & 0o777 == FILE_MODE
+    assert os.stat(tmp_path / ".docqgisproject-manifest.json").st_mode & 0o777 == FILE_MODE

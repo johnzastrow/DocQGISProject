@@ -82,8 +82,8 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
     checks shipped names against the ban list. Worth fixing the skill's message.
   - Markdown code spans keep content literal (CommonMark); hostile text inside them is inert. The lint and
     tests strip code spans before looking for raw HTML.
-  - Output files are created mode 600 (owner only) because writes go through mkstemp. Deliberate for now;
-    owner to decide whether reports should follow the umask instead.
+  - Output files get normal user-file permissions (0o666 minus the umask, usually 644); the owner
+    chose this over the owner-only 600 that mkstemp gives. `core/safe_paths.py` chmods before the rename.
   - Coverage on fixtures: basic 47 %, styling 60 %, layout 86 %, sources 41 %. Biggest unexplained group
     everywhere is `projectlayers/maplayer/elevation` (layer elevation properties), then flags, temporal,
     geometryOptions, ProjectDisplaySettings, main-annotation-layer. Candidates for new Tier A collectors.
