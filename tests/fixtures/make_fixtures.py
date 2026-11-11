@@ -21,7 +21,8 @@ Writes one GeoPackage of data plus these projects (paths stored relative):
                  a layout variable, an "Item zoo" layout with one item of every registered
                  layout item type, an atlas layout and a report
     sources.qgz  credential-bearing sources for redaction tests (fake values; the PostGIS
-                 host is a closed port on localhost), a hostile layer name, a secret variable
+                 host is a closed port on localhost), a hostile layer name, a secret variable,
+                 HTML-hostile layer notes, layout name, label text and picture path
 
 Output is deterministic (no randomness). Nothing is fetched from the network.
 """
@@ -730,6 +731,24 @@ def make_sources(out, gpkg):
     missing = QgsVectorLayer(str(out / "does_not_exist.gpkg") + "|layername=nothing", "missing file", "ogr")
     for lyr in (hostile, xyz, pg, missing):
         project.addMapLayer(lyr)
+    # HTML-specific hostile content: notes with markup, a layout and label that try to break out
+    # of the report's HTML, a picture whose "path" is a javascript: URL.
+    from qgis.core import QgsLayerNotesUtils
+
+    QgsLayerNotesUtils.setLayerNotes(
+        hostile, '<p>Note <img src=x onerror=alert(1)> <a href="javascript:alert(2)">click</a></p>'
+    )
+    lay = QgsPrintLayout(project)
+    lay.initializeDefaults()
+    lay.setName('Hostile <b onmouseover="alert(5)">layout</b>')
+    label = QgsLayoutItemLabel(lay)
+    label.setText("</style><script>alert(3)</script>")
+    lay.addLayoutItem(label)
+    label.setId('"><img src=x onerror=alert(6)>')
+    pic = QgsLayoutItemPicture(lay)
+    pic.setPicturePath("javascript:alert(4)")
+    lay.addLayoutItem(pic)
+    project.layoutManager().addLayout(lay)
     QgsExpressionContextUtils.setProjectVariable(project, "service_token", "VAR-TOKEN-000")
     QgsExpressionContextUtils.setProjectVariable(project, "region", "Maine")
     _write(project, out / "sources.qgz")

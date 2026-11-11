@@ -32,3 +32,19 @@ def test_every_dir_is_verified():
     for d in m["DIRS"]:
         assert any(v.startswith(d.rstrip("/") + "/") for v in verify), f"DIRS entry {d} has no VERIFY entry"
     assert {"LICENSE", "metadata.txt"} <= verify
+
+
+def test_no_shipped_file_matches_the_build_ban_list():
+    """The build rejects these names (plugins.qgis.org rules); catch them before the build does.
+
+    A module called resources.py looks like a compiled Qt resource file and is banned.
+    """
+    import re
+
+    banned = re.compile(r"__pycache__|\.pyc$|\.pyo$|resources\.py$|\.sh$|\.tar\.gz$|\.tgz$|\.rar$|\.7z$|\.zip$")
+    m = manifest()
+    shipped = [ROOT / f for f in m["FILES"]]
+    for d in m["DIRS"]:
+        shipped += [p for p in (ROOT / d).rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+    hits = [str(p.relative_to(ROOT)) for p in shipped if banned.search(p.name)]
+    assert hits == [], hits

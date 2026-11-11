@@ -25,11 +25,21 @@ def _clean(value):
     raise TypeError(f"value of type {type(value).__name__} is not JSON-ready")
 
 
-SEMANTIC_KEYS = ("project", "layer_tree", "layers", "relations", "themes", "bookmarks", "variables", "layouts")
+SEMANTIC_KEYS = (
+    "project",
+    "layer_tree",
+    "layers",
+    "relations",
+    "themes",
+    "bookmarks",
+    "variables",
+    "layouts",
+    "resources",
+)
 
 
 def model_to_json_dict(model):
-    """{schema, generator, options, semantic: {...}, problems, redactions}; `rebuild` comes in P5."""
+    """{schema, generator, options, semantic, problems, redactions, coverage, tier_b}; `rebuild` comes in P5."""
     data = _clean(model)
     return {
         "schema": data["schema"],
@@ -38,6 +48,8 @@ def model_to_json_dict(model):
         "semantic": {k: data[k] for k in SEMANTIC_KEYS},
         "problems": data["problems"],
         "redactions": data["redactions"],
+        "coverage": data["coverage"],
+        "tier_b": data["tier_b"],
     }
 
 

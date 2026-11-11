@@ -191,6 +191,9 @@ class DocModel:
     bookmarks: list = field(default_factory=list)
     variables: list = field(default_factory=list)
     layouts: list = field(default_factory=list)  # print layouts and reports (collectors/layouts.py)
+    resources: dict = field(default_factory=dict)  # fonts and external files (collectors/fonts_files.py)
+    coverage: dict = field(default_factory=dict)  # share of project XML explained (collectors/tier_b.py)
+    tier_b: list = field(default_factory=list)  # unexplained XML paths, detail == "full" only
     problems: list = field(default_factory=list)
     redactions: dict = field(default_factory=dict)  # kind -> total count
 

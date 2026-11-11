@@ -189,7 +189,7 @@ def symbol_diff(base, other):
 
 def symbol_details(doc, symbol, where, title="Symbol", depth=0):
     """Bold heading per symbol layer, then a Setting | Value | Where table of non-defaults."""
-    if not symbol:
+    if not symbol or getattr(doc, "detail", "standard") == "summary":
         return
     opacity = symbol.get("opacity")
     extra = f", opacity {round(opacity * 100)} %" if opacity is not None and opacity < 1 else ""

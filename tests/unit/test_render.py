@@ -76,7 +76,7 @@ def test_markdown_without_redaction_has_banner():
 def test_json_is_strict_and_structured():
     data = json.loads(render_json(_model()))
     assert data["schema"] == "docqgisproject/1"
-    assert set(data) == {"schema", "generator", "options", "semantic", "problems", "redactions"}
+    assert set(data) == {"schema", "generator", "options", "semantic", "problems", "redactions", "coverage", "tier_b"}
     lyr = data["semantic"]["layers"][0]
     assert lyr["extent"][3] is None  # NaN became null
     assert data["semantic"]["variables"][0]["value"] == {"redacted": "api_key"}
@@ -89,7 +89,6 @@ def test_json_is_strict_and_structured():
         {"formats": ()},
         {"detail": "everything"},
         {"redact": "yes"},
-        {"formats": ("pdf",)},
         {"image_dpi": 10},
         {"image_dpi": 120.5},
         {"image_dpi": True},

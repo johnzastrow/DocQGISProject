@@ -17,20 +17,24 @@ from datetime import datetime, timezone
 
 from qgis.core import Qgis, QgsProject
 
+from ..render.html_out import render_html
 from ..render.json_out import render_json
 from ..render.md_out import render_markdown
+from ..render.pdf_out import render_pdf
 from .artifacts import ArtifactSink
 from .collectors.common import safe_message
 from .collectors.layers import collect_layers, collect_tree
 from .collectors.layouts import collect_layouts
 from .collectors.maps import project_overview
+from .collectors.fonts_files import collect_resources
+from .collectors.tier_b import collect_tier_b
 from .collectors.project import collect_bookmarks, collect_project, collect_relations, collect_themes, collect_variables
 from .model import DocModel
 from .options import DocOptions
 from .safe_paths import OutputFolder
 
 PROJECT_SUFFIXES = (".qgz", ".qgs")
-OUTPUT_NAMES = {"json": "project.json", "markdown": "report.md"}
+OUTPUT_NAMES = {"json": "project.json", "markdown": "report.md", "html": "report.html", "pdf": "report.pdf"}
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -100,6 +104,8 @@ def collect(project, options, feedback=None, sink=None):
     if options.images:
         image = step("overview", project_overview, project, options.image_dpi)
         model.project.overview_image = sink.add_png("images/project_overview.png", image) if image else None
+    step("resources", collect_resources, model, os.path.dirname(project.fileName()) if project.fileName() else None)
+    step("coverage", collect_tier_b, project, model, options)
     if not options.redact:
         model.add_problem("warning", "security", "Redaction was turned off: this output may contain credentials.")
     if sink.dropped:
@@ -125,12 +131,19 @@ def document_project(project_or_path, output_folder, options=None, feedback=None
     # a half-written folder. Images and styles are written first, then the reports.
     out.check_writable(list(sink.files))
 
-    renderers = {"json": render_json, "markdown": render_markdown}
     result = RunResult(model=model, problems=model.problems, redactions=model.redactions)
     for name, data in sink.files.items():
         result.files.append(out.write_bytes(name, data))
     for fmt in options.formats:
-        result.files.append(out.write_text(OUTPUT_NAMES[fmt], renderers[fmt](model)))
+        if fmt == "json":
+            data = render_json(model).encode("utf-8")
+        elif fmt == "markdown":
+            data = render_markdown(model).encode("utf-8")
+        elif fmt == "html":
+            data = render_html(model, sink.files).encode("utf-8")
+        else:
+            data = render_pdf(model, sink.files)
+        result.files.append(out.write_bytes(OUTPUT_NAMES[fmt], data))
     if feedback is not None:
         feedback.setProgress(100)
     return result

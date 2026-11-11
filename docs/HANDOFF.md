@@ -1,8 +1,8 @@
-# Handoff: DocQGISProject (development, P3 done), 2026-11-11
+# Handoff: DocQGISProject (development, P4 done), 2026-11-11
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P1 and P2 pushed; P3 committed locally, not pushed)
+## State (updated 2026-11-11, P1 to P3 pushed; P4 committed locally, not pushed)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
@@ -73,8 +73,27 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
 - Not covered yet: report section body layouts are not rendered or itemised; elevation profile, chart and
   HTML items have generic (XML) properties only; fonts used in layouts are not checked against installed
   fonts (Resources, P4 quality); 3D map items (not in core).
-- Next: P4 (HTML and PDF renderers, readability lint as a gate, Tier B generic XML appendix, coverage
-  report, HTML-specific hostile-project checks). Still open: GUI click test.
+- P4 delivered: `render/html_out.py` (Markdown-subset to HTML converter + document; also used by the PDF),
+  `render/pdf_out.py` (QTextDocument + QPdfWriter, own page loop for header/footer), `core/collectors/tier_b.py`
+  (coverage + Tier B, SUBTREE_CLAIMS / ELEMENT_CLAIMS), `core/collectors/fonts_files.py` (fonts and files),
+  `tests/html_safety.py` (structural HTML check), detail levels wired (`_Doc.detail`).
+  - BUILD GOTCHA: a module named `resources.py` is rejected by the build (it looks like a compiled Qt
+    resource file; the error text wrongly mentions shell scripts). Renamed to `fonts_files.py`; a unit test now
+    checks shipped names against the ban list. Worth fixing the skill's message.
+  - Markdown code spans keep content literal (CommonMark); hostile text inside them is inert. The lint and
+    tests strip code spans before looking for raw HTML.
+  - Output files are created mode 600 (owner only) because writes go through mkstemp. Deliberate for now;
+    owner to decide whether reports should follow the umask instead.
+  - Coverage on fixtures: basic 47 %, styling 60 %, layout 86 %, sources 41 %. Biggest unexplained group
+    everywhere is `projectlayers/maplayer/elevation` (layer elevation properties), then flags, temporal,
+    geometryOptions, ProjectDisplaySettings, main-annotation-layer. Candidates for new Tier A collectors.
+  - Test zip: `dist/DocQGISProject-0.1.0-dev-P4.zip` (86 KB).
+- P4 verification: `make check` green (84 unit tests), `make qgis-test` 42 passed (about 24 s; PDF is the slow
+  part), build self-verify OK, engine writes all four formats from the installed zip.
+- Not done: no browser screenshot check of the HTML (verified structurally and by tests); reading-level
+  metrics per chapter (design 6b rule 7) not implemented.
+- Next: P5 (rebuild payload in the JSON, JSON Schema in docs/schema/, `core.rebuild`, RebuildProject
+  algorithm logic, round-trip test, hostile-JSON corpus). Still open: GUI click test.
 
 ## Owner requirements (verbatim intent)
 

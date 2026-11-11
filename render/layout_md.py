@@ -292,6 +292,9 @@ def layouts_chapter(doc, model):
             ["Item", "Type", "Page", "Position", "Size", "Notes"],
             [[md_text(i.get("name")), md_text(i.get("type")), str(i.get("page")), *_pos(i), _notes(i)] for i in items],
         )
+        if doc.detail == "summary":
+            _atlas(doc, lay.get("atlas"))
+            continue
         doc.heading(4, "Item settings")
         for item in items:
             rows = _detail_rows(item) + _common_rows(item)

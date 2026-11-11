@@ -6,14 +6,16 @@ A QGIS 4 plugin that documents a QGIS project for two audiences from one run:
   rendered layout pages, symbols and legends.
 - **Machines:** a schema-versioned JSON file complete enough to rebuild the project programmatically.
 
-**Status: development (phase P3).** The documentation engine writes `project.json` and `report.md`
+**Status: development (phase P4).** Outputs: `project.json`, `report.md`, `report.html`
+(self-contained, no JavaScript) and `report.pdf`, plus a coverage appendix showing how much of the
+project file the report explains, and a fonts and files check. The documentation engine writes `project.json` and `report.md`
 covering project settings, the layer tree, layers and their sources (credentials redacted), fields,
 joins, relations, variables, map themes, bookmarks, full styling (renderers, every symbol layer,
 labels, raster rendering) and print layouts (every item with position and size, tables, atlas,
 reports). Images: legend swatches, layer thumbnails and an overview map (`images/`), layout pages and
 item close-ups (`layouts/`). Files to rebuild with: one QML style per layer (`styles/`) and one
-template per layout (`layouts/*.qpt`). HTML and PDF (P4), the rebuilder (P5) and the dialog and
-Processing algorithm (P6) are still to come.
+template per layout (`layouts/*.qpt`). The rebuilder (P5) and the dialog and Processing algorithm
+(P6) are still to come.
 See [`docs/DESIGN.md`](docs/DESIGN.md) for the design and delivery plan.
 
 Until the dialog lands, run it from the QGIS Python Console:
@@ -30,7 +32,8 @@ print(result.files, result.redactions)
 Options: `load_data` (default on: load local layers for counts and extents), `redact` (default on),
 `include_network_layers` (default off: web services and databases are never contacted),
 `overwrite` (default off: files in the folder that this plugin did not write are never replaced),
-`images` (default on) and `image_dpi` (default 120).
+`images` (default on), `image_dpi` (default 120), `formats` (default all of json, markdown, html,
+pdf) and `detail` (summary, standard, full; full adds the list of every unexplained project-file element).
 
 Requirements: QGIS 4.0 or later (Qt 6). Licence: GPL-2.0-or-later.
 

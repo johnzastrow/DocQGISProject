@@ -8,6 +8,29 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-11: P4 HTML and PDF reports. All four formats are written by default
+  (`project.json`, `report.md`, `report.html`, `report.pdf`).
+  - HTML: one self-contained file converted from the report Markdown (same content), table of
+    contents, collapsible layer and layout sections, print stylesheet, dark mode. No JavaScript;
+    Content-Security-Policy with `default-src 'none'` and the stylesheet pinned by its SHA-256
+    hash; images embedded as data URIs up to 8 MB in total, then linked; image sources must match
+    the plugin's own file names.
+  - PDF: A4 via QTextDocument and QPdfWriter, running header with the project title, "Page n of N"
+    footer, images scaled to fit the text area and one page height.
+- Coverage report (appendix): the share of project-file elements the chapters explain, and the
+  unexplained ones grouped by section. With detail level *full*, a Tier B table lists every
+  unexplained element path with counts and redacted sample values. The project XML is parsed with
+  Qt's parser (bounded entity expansion), read from the .qgz in memory with a 200 MB cap.
+- "Fonts and files" chapter: fonts used by labels, font markers and layout text, checked against
+  the installed fonts; SVG and image files used by symbols and pictures, checked for existence.
+  Missing ones are warnings.
+- Detail levels now apply: *summary* omits per-setting tables (symbol layers, layout item
+  settings, source parameters); *full* adds the Tier B table.
+- Tests: HTML structural safety check (allowlisted tags, no event handlers, no foreign `href` or
+  `src`, CSP present), hostile-project HTML fixtures (layer notes, layout name, label text,
+  `javascript:` picture path), PDF validity, coverage, detail levels, resources; a unit test that
+  no shipped file name matches the build's ban list.
+
 - 2026-11-11: P3 print layouts and reports. Every layout item is documented with type, page,
   position, size, reference point, rotation, frame, background, opacity, blending, visibility,
   data-defined overrides and every attribute QGIS stores for it; type-specific settings for maps

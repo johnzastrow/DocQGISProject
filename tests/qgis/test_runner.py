@@ -74,7 +74,9 @@ def test_basic_project(run):
     for heading in ("How to recreate this project", "Relations", "Map themes", "Print layouts"):
         assert re.search(rf"^## \d+\. {heading}$", md, re.M), heading
     assert "Sites in zone" in md and "Zones only" in md
-    assert set(os.listdir(out)) == {"project.json", "report.md", ".docqgisproject-manifest.json", "images", "styles"}
+    assert set(os.listdir(out)) == {
+        "project.json", "report.md", "report.html", "report.pdf", ".docqgisproject-manifest.json", "images", "styles"
+    }
 
 
 def test_sources_redacted_and_remote_not_contacted(run, fake_secrets):
@@ -95,8 +97,10 @@ def test_sources_redacted_and_remote_not_contacted(run, fake_secrets):
     assert data["redactions"] == {"user": 1, "password": 1, "userinfo": 1, "api_key": 1, "token": 1}  # each secret once
     severities = {(p["severity"], p["layer_id"] is not None) for p in data["problems"]}
     assert ("warning", True) in severities  # the missing file
-    # the hostile layer name is inert in Markdown
-    assert "<script" not in md
+    # the hostile layer name is inert in Markdown (code spans display their content literally)
+    from readability import strip_code_spans
+
+    assert all("<script" not in strip_code_spans(line) for line in md.splitlines())
     assert lint_markdown(md) == []
 
 

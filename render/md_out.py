@@ -26,8 +26,9 @@ _SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 class _Doc:
     """Tiny Markdown builder that keeps blank lines between blocks."""
 
-    def __init__(self):
+    def __init__(self, detail="standard"):
         self.lines = []
+        self.detail = detail  # summary | standard | full
 
     def block(self, *lines):
         if self.lines and self.lines[-1] != "":
@@ -375,7 +376,7 @@ def _layers(doc, model):
             doc.para(f"![{md_text(lyr.name)} on its own]({lyr.thumbnail})")
         style_chapter(doc, lyr)
 
-        if isinstance(src.parts, dict) and len(src.parts) > 1:
+        if isinstance(src.parts, dict) and len(src.parts) > 1 and doc.detail != "summary":
             doc.heading(4, "Source parameters")
             # Show the project-relative path instead of an absolute one when there is one.
             part_rows = [
@@ -495,7 +496,7 @@ def _problems(doc, model):
 
 
 def render_markdown(model):
-    doc = _Doc()
+    doc = _Doc(detail=(model.options or {}).get("detail", "standard"))
     p = model.project
     title = p.title or p.file_name or "Untitled project"
     doc.heading(1, f"Project documentation: {md_text(title)}")
@@ -516,6 +517,70 @@ def render_markdown(model):
     return doc.text()
 
 
+def _resources(doc, model):
+    doc.heading(2, f"{num('resources')}. Fonts and files")
+    res = model.resources or {}
+    fonts, files = res.get("fonts") or [], res.get("files") or []
+    if not fonts and not files:
+        doc.para("The styles and layouts use no named fonts or external files.")
+        return
+    doc.para(
+        "Fonts and files the styles and layouts need. Install missing fonts and copy missing files before "
+        "rebuilding, or QGIS substitutes a font or draws nothing."
+    )
+    if fonts:
+        doc.table(
+            ["Font", "Installed here", "Used by"],
+            [[md_text(f["family"]), fmt_bool(f["installed"]), md_text(", ".join(f["used_by"]))] for f in fonts],
+        )
+    if files:
+        doc.table(
+            ["File", "Found", "Used by"],
+            [
+                [
+                    md_code(f["path"]),
+                    "Yes" if f["exists"] else ("No" if f["exists"] is False else "Not a local file"),
+                    md_text(", ".join(f["used_by"])),
+                ]
+                for f in files
+            ],
+        )
+
+
+def _coverage(doc, model):
+    doc.heading(2, f"{num('coverage')}. Appendix: coverage of the project file")
+    cov = model.coverage or {}
+    if not cov:
+        doc.para("No coverage figures: the project file could not be read (see the problems chapter).")
+        return
+    doc.para(
+        f"The chapters above explain {cov['percent_claimed']} % of the elements in the project file "
+        f"({fmt_number(cov['claimed_elements'])} of {fmt_number(cov['total_elements'])}). The rest is listed "
+        "below by section. The JSON file holds every element; the QML and QPT files hold the complete styles "
+        "and layouts."
+    )
+    groups = cov.get("unclaimed_groups") or []
+    if groups:
+        doc.table(
+            ["Project file section not explained above", "Elements", "Distinct paths"],
+            [[md_code(g["group"]), fmt_number(g["elements"]), fmt_number(g["paths"])] for g in groups[:60]],
+        )
+    if doc.detail != "full":
+        doc.para("Run with the *full* detail level to list every unexplained element with sample values.")
+        return
+    doc.heading(3, f"{num('coverage')}.1 Unexplained elements (Tier B)")
+    doc.para(
+        "Each path is an element of the project file, with how often it occurs and sample attribute values (redacted)."
+    )
+    rows = []
+    for e in model.tier_b or []:
+        sample = "; ".join(f"{k}={v}" for k, v in (e["samples"][0] if e["samples"] else {}).items())
+        if not sample and e.get("text"):
+            sample = e["text"]
+        rows.append([md_code(e["path"]), fmt_number(e["count"]), md_code(sample[:160]) if sample else ""])
+    doc.table(["Path", "Count", "Example"], rows)
+
+
 # Chapter order. Numbers in headings, the contents list and cross-references all derive from it.
 CHAPTERS = [
     ("overview", "Overview", _overview),
@@ -528,7 +593,9 @@ CHAPTERS = [
     ("variables", "Project variables", _variables),
     ("themes", "Map themes", _themes),
     ("bookmarks", "Spatial bookmarks", _bookmarks),
+    ("resources", "Fonts and files", _resources),
     ("problems", "Warnings and problems", _problems),
+    ("coverage", "Appendix: coverage of the project file", _coverage),
 ]
 
 

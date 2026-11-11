@@ -7,7 +7,7 @@ Strict allowlist validation: unknown formats or levels are rejected, never coerc
 from dataclasses import asdict, dataclass
 
 ALL_FORMATS = ("json", "markdown", "html", "pdf")
-IMPLEMENTED_FORMATS = ("json", "markdown")  # html and pdf arrive in phase P4
+IMPLEMENTED_FORMATS = ALL_FORMATS
 DETAIL_LEVELS = ("summary", "standard", "full")
 
 
