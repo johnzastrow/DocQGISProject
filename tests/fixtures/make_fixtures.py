@@ -12,7 +12,9 @@ Writes one GeoPackage of data plus these projects (paths stored relative):
     styling.qgz  one layer per renderer type (single, categorized, graduated, rule-based,
                  inverted polygon, 2.5D, point cluster, point displacement, heatmap, null),
                  multi-layer symbols, a data-defined property, a paint effect,
-                 simple and rule-based labeling
+                 simple labeling with buffer, background and shadow, rule-based labeling,
+                 three "zoo" layers stacking every registered symbol-layer type, and raster
+                 layers (pseudocolor, hillshade, gray, paletted) on dem.tif / landcover.tif
     layout.qgz   a print layout with each common item type (map with grid and overview,
                  legend, scale bar, label, picture, shape, polygon and polyline nodes,
                  marker, attribute table, manual table), an atlas layout and a report
@@ -94,9 +96,10 @@ from qgis.core import (  # noqa: E402
     QgsVectorFileWriter,
     QgsVectorLayer,
     QgsVectorLayerSimpleLabeling,
+    QgsTextBackgroundSettings,
 )
 from qgis.PyQt.QtCore import QPointF, QRectF  # noqa: E402
-from qgis.PyQt.QtGui import QColor, QPolygonF  # noqa: E402
+from qgis.PyQt.QtGui import QColor, QPainter, QPolygonF  # noqa: E402
 
 CRS = "EPSG:32619"  # WGS 84 / UTM zone 19N (Maine); metres
 X0, Y0, CELL = 400000.0, 4900000.0, 1000.0  # 3 x 3 grid of 1 km cells
@@ -256,6 +259,21 @@ def make_basic(out, gpkg):
     trails_node.setItemVisibilityChecked(True)
     sites_node.setItemVisibilityChecked(True)
 
+    # A join (sites gain the zone name) and a virtual field (zones area in km2).
+    from qgis.core import QgsField, QgsVectorLayerJoinInfo
+    from qgis.PyQt.QtCore import QMetaType
+
+    join = QgsVectorLayerJoinInfo()
+    join.setJoinLayer(zones)
+    join.setJoinFieldName("id")
+    join.setTargetFieldName("zone_id")
+    join.setPrefix("zone_")
+    join.setJoinFieldNamesSubset(["name"])
+    join.setUsingMemoryCache(True)
+    sites.addJoin(join)
+    zones.addExpressionField('"area_ha" / 100', QgsField("area_km2", QMetaType.Type.Double))
+    zones.setFieldAlias(zones.fields().indexOf("name"), "Zone name")
+
     _write(project, out / "basic.qgz")
 
 
@@ -311,7 +329,7 @@ def make_styling(out, gpkg):
     # rule-based
     rb_root = QgsRuleBasedRenderer.Rule(None)
     rb_root.appendChild(QgsRuleBasedRenderer.Rule(_fill("#ffd166"), 0, 0, "\"zone\" = 'A'", "Zone A"))
-    rb_root.appendChild(QgsRuleBasedRenderer.Rule(_fill("#06d6a0"), 0, 0, "\"area_ha\" > 150", "Large"))
+    rb_root.appendChild(QgsRuleBasedRenderer.Rule(_fill("#06d6a0"), 0, 0, '"area_ha" > 150', "Large"))
     rb_root.appendChild(QgsRuleBasedRenderer.Rule(_fill("#cccccc"), 0, 0, "ELSE", "Other"))
     add("zones", "rule-based", QgsRuleBasedRenderer(rb_root))
 
@@ -356,6 +374,11 @@ def make_styling(out, gpkg):
     fmt = QgsTextFormat()
     fmt.setSize(9)
     fmt.setColor(QColor("#222222"))
+    fmt.buffer().setEnabled(True)
+    fmt.buffer().setSize(1.0)
+    fmt.background().setEnabled(True)
+    fmt.background().setType(QgsTextBackgroundSettings.ShapeType.ShapeRectangle)
+    fmt.shadow().setEnabled(True)
     pal.setFormat(fmt)
     labelled = project.mapLayersByName("categorized")[0]
     labelled.setLabeling(QgsVectorLayerSimpleLabeling(pal))
@@ -373,10 +396,118 @@ def make_styling(out, gpkg):
     trails.setLabelsEnabled(True)
 
     # Only the first few layers visible so a render is readable.
+    add_symbol_zoo(project, gpkg)
+    add_rasters(project, out)
+
     for node in root.findLayers()[5:]:
         node.setItemVisibilityChecked(False)
 
     _write(project, out / "styling.qgz")
+
+
+def add_symbol_zoo(project, gpkg):
+    """One hidden layer per geometry whose symbol stacks EVERY registered symbol-layer type."""
+    from qgis.core import QgsSymbol
+
+    reg = QgsApplication.symbolLayerRegistry()
+    for table, name, stype in (
+        ("sites", "zoo markers", Qgis.SymbolType.Marker),
+        ("trails", "zoo lines", Qgis.SymbolType.Line),
+        ("zones", "zoo fills", Qgis.SymbolType.Fill),
+    ):
+        lyr = load(gpkg, table, name)
+        symbol = QgsSymbol.defaultSymbol(lyr.geometryType())
+        symbol.deleteSymbolLayer(0)
+        for cls in reg.symbolLayersForType(stype):
+            sl = reg.symbolLayerMetadata(cls).createSymbolLayer({})
+            if sl is not None:
+                symbol.appendSymbolLayer(sl)
+        lyr.setRenderer(QgsSingleSymbolRenderer(symbol))
+        project.addMapLayer(lyr)
+
+
+def write_rasters(out):
+    """A 40 x 40 elevation grid (Float32) and a 3-class land-cover grid (Byte), EPSG:32619."""
+    from osgeo import gdal, osr
+
+    gdal.UseExceptions()
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(32619)
+    paths = {}
+    for name, dtype, fn in (
+        (
+            "dem.tif",
+            gdal.GDT_Float32,
+            lambda r, c: 100.0 + 2.5 * r + 1.5 * c + (10.0 if 15 < r < 25 and 15 < c < 25 else 0.0),
+        ),
+        ("landcover.tif", gdal.GDT_Byte, lambda r, c: 1 + (r // 14 + c // 14) % 3),
+    ):
+        path = out / name
+        ds = gdal.GetDriverByName("GTiff").Create(str(path), 40, 40, 1, dtype)
+        ds.SetGeoTransform((X0, 75.0, 0.0, Y0 + 3000.0, 0.0, -75.0))
+        ds.SetProjection(srs.ExportToWkt())
+        band = ds.GetRasterBand(1)
+        rows = [[fn(r, c) for c in range(40)] for r in range(40)]
+        import struct
+
+        fmt = "f" if dtype == gdal.GDT_Float32 else "B"
+        band.WriteRaster(0, 0, 40, 40, struct.pack(f"{40 * 40}{fmt}", *[v for row in rows for v in row]))
+        band.SetNoDataValue(0)
+        ds.FlushCache()
+        ds = None
+        paths[name] = path
+    return paths
+
+
+def add_rasters(project, out):
+    from qgis.core import (
+        QgsColorRampShader,
+        QgsGradientColorRamp,
+        QgsHillshadeRenderer,
+        QgsPalettedRasterRenderer,
+        QgsRasterLayer,
+        QgsRasterShader,
+        QgsSingleBandGrayRenderer,
+        QgsSingleBandPseudoColorRenderer,
+    )
+
+    paths = write_rasters(out)
+    dem_path = str(paths["dem.tif"])
+
+    pseudo = QgsRasterLayer(dem_path, "dem pseudocolor", "gdal")
+    shader_fn = QgsColorRampShader(100, 220)
+    shader_fn.setSourceColorRamp(QgsGradientColorRamp(QColor("#1a9641"), QColor("#d7191c")))
+    shader_fn.setColorRampType(QgsColorRampShader.Type.Interpolated)
+    shader_fn.setColorRampItemList([
+        QgsColorRampShader.ColorRampItem(100, QColor("#1a9641"), "Low"),
+        QgsColorRampShader.ColorRampItem(160, QColor("#ffffbf"), "Mid"),
+        QgsColorRampShader.ColorRampItem(220, QColor("#d7191c"), "High"),
+    ])
+    shader = QgsRasterShader()
+    shader.setRasterShaderFunction(shader_fn)
+    pseudo.setRenderer(QgsSingleBandPseudoColorRenderer(pseudo.dataProvider(), 1, shader))
+    pseudo.brightnessFilter().setContrast(10)
+    pseudo.hueSaturationFilter().setSaturation(-20)
+
+    hill = QgsRasterLayer(dem_path, "dem hillshade", "gdal")
+    hill.setRenderer(QgsHillshadeRenderer(hill.dataProvider(), 1, 315, 45))
+    hill.setOpacity(0.5)
+    hill.setBlendMode(QPainter.CompositionMode.CompositionMode_Multiply)
+
+    gray = QgsRasterLayer(dem_path, "dem gray", "gdal")
+    gray.setRenderer(QgsSingleBandGrayRenderer(gray.dataProvider(), 1))
+
+    lc = QgsRasterLayer(str(paths["landcover.tif"]), "landcover paletted", "gdal")
+    classes = [
+        QgsPalettedRasterRenderer.Class(1, QColor("#33a02c"), "Forest"),
+        QgsPalettedRasterRenderer.Class(2, QColor("#ffff99"), "Field"),
+        QgsPalettedRasterRenderer.Class(3, QColor("#1f78b4"), "Water"),
+    ]
+    lc.setRenderer(QgsPalettedRasterRenderer(lc.dataProvider(), 1, classes))
+    for lyr in (pseudo, hill, gray, lc):
+        if not lyr.isValid():
+            raise RuntimeError(f"raster fixture invalid: {lyr.name()}")
+        project.addMapLayer(lyr)
 
 
 def make_layout(out, gpkg, svg):
@@ -493,7 +624,7 @@ def make_layout(out, gpkg, svg):
     atlas = atlas_layout.atlas()
     atlas.setCoverageLayer(zones)
     atlas.setEnabled(True)
-    atlas.setPageNameExpression("\"name\"")
+    atlas.setPageNameExpression('"name"')
     atlas.setFilenameExpression("'zone_' || \"id\"")
     project.layoutManager().addLayout(atlas_layout)
 
@@ -526,7 +657,7 @@ def make_sources(out, gpkg):
     # PostGIS on a closed localhost port: invalid, fails fast, never leaves the machine.
     pg = QgsVectorLayer(
         "host=127.0.0.1 port=1 dbname='gis' user='pg_user_alice' password='pg-PASSWORD-123' "  # pragma: allowlist secret
-        "sslmode=disable key='id' srid=32619 type=Point table=\"public\".\"sites\" (geom)",
+        'sslmode=disable key=\'id\' srid=32619 type=Point table="public"."sites" (geom)',
         "postgis sites",
         "postgres",
     )

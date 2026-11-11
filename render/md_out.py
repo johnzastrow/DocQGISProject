@@ -8,6 +8,7 @@ Tables stay at 6 columns or fewer and headings at level 4 or above.
 """
 
 from .strings import WHERE, add_layer_hint
+from .style_md import style_chapter
 from .text import (
     fmt_bool,
     fmt_extent,
@@ -151,10 +152,7 @@ def _recreate(doc, model):
         steps.append(f"Add the bookmarks in chapter 9: **{WHERE['bookmarks']}**.")
     steps.append("Save the project: **Project > Save As**.")
     doc.bullets([f"{n}. {s}" for n, s in enumerate(steps, 1)])
-    doc.para(
-        "*Not yet documented by this development build:* layer styling and labels (phase P2) "
-        "and print layouts (phase P3)."
-    )
+    doc.para("*Not yet documented by this development build:* print layouts (phase P3).")
 
 
 def _tree_steps(node, by_id, names, path=()):
@@ -176,7 +174,15 @@ def _tree_steps(node, by_id, names, path=()):
                 continue
             hint = add_layer_hint(lyr.source.provider, lyr.source.parts)
             vis = "" if child.visible else " Uncheck it (hidden)."
-            out.append(f"Add layer **{md_text(lyr.name)}** from {_source_location(lyr)} with **{hint}**{where}.{vis}")
+            qml = (lyr.style or {}).get("qml")
+            style = (
+                f" Load its style from {md_code(qml)} (**Layer Properties > Symbology > Style > Load Style**)."
+                if qml
+                else ""
+            )
+            out.append(
+                f"Add layer **{md_text(lyr.name)}** from {_source_location(lyr)} with **{hint}**{where}.{style}{vis}"
+            )
     return out
 
 
@@ -349,6 +355,8 @@ def _layers(doc, model):
         if lyr.notes:
             rows.append(("Notes", md_text(lyr.notes), "notes"))
         _settings(doc, rows)
+
+        style_chapter(doc, lyr)
 
         if isinstance(src.parts, dict) and len(src.parts) > 1:
             doc.heading(4, "Source parameters")

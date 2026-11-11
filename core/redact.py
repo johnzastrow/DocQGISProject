@@ -141,17 +141,18 @@ def redact_text(text, _depth=0):
             return m.group("pre") + key + m.group("eq") + _requote(q, PLACEHOLDER.format(kind=kind))
         # Not sensitive itself, but the value may be a URL holding secrets (XYZ/WMS url=...),
         # either plain (url=https://h/t.png?api_key=x) or percent-encoded (...%3Fapi_key%3Dx).
+        # Both forms are always scanned: a URL can mix them (literal "@" with an encoded "%3D").
         if _depth < 3 and any(c in inner for c in "=?@%"):
             red, sub = redact_text(inner, _depth + 1)
+            decoded = unquote(red)
+            if decoded != red:
+                red2, sub2 = redact_text(decoded, _depth + 1)
+                if sub2:
+                    red = quote(red2, safe=":/{}[]@")
+                    sub = sub + sub2
             if sub:
                 kinds.update(sub)
                 return m.group("pre") + key + m.group("eq") + _requote(q, red)
-            decoded = unquote(inner)
-            if decoded != inner:
-                red, sub = redact_text(decoded, _depth + 1)
-                if sub:
-                    kinds.update(sub)
-                    return m.group("pre") + key + m.group("eq") + _requote(q, quote(red, safe=":/{}[]"))
         return m.group(0)
 
     # A pair preceded by '?' or '&' is in URL-query context, where `key=` is a secret.

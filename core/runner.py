@@ -19,6 +19,7 @@ from qgis.core import Qgis, QgsProject
 
 from ..render.json_out import render_json
 from ..render.md_out import render_markdown
+from .artifacts import ArtifactSink
 from .collectors.common import safe_message
 from .collectors.layers import collect_layers, collect_tree
 from .collectors.project import collect_bookmarks, collect_project, collect_relations, collect_themes, collect_variables
@@ -63,8 +64,9 @@ def open_project(path):
     return project
 
 
-def collect(project, options, feedback=None):
+def collect(project, options, feedback=None, sink=None):
     """Run every collector on an open project and return the DocModel."""
+    sink = sink if sink is not None else ArtifactSink(images=options.images)
     model = DocModel()
     model.generator = {
         "plugin": "DocQGISProject",
@@ -85,7 +87,7 @@ def collect(project, options, feedback=None):
     model.layer_tree = step("layer tree", collect_tree, project)
     if feedback is not None:
         feedback.setProgress(10)
-    if step("layers", collect_layers, project, model, options, feedback) is False:
+    if step("layers", collect_layers, project, model, options, feedback, sink) is False:
         raise Cancelled()
     step("variables", collect_variables, project, model, options.redact)
     step("relations", collect_relations, project, model)
@@ -93,6 +95,10 @@ def collect(project, options, feedback=None):
     step("bookmarks", collect_bookmarks, project, model)
     if not options.redact:
         model.add_problem("warning", "security", "Redaction was turned off: this output may contain credentials.")
+    if sink.dropped:
+        model.add_problem(
+            "warning", "images", f"{sink.dropped} images or files were skipped: the size budget was reached."
+        )
     return model
 
 
@@ -104,12 +110,18 @@ def document_project(project_or_path, output_folder, options=None, feedback=None
     out.check_writable(names)  # fail before doing any work if a file cannot be written
 
     project = project_or_path if isinstance(project_or_path, QgsProject) else open_project(project_or_path)
-    model = collect(project, options, feedback)
+    sink = ArtifactSink(images=options.images)
+    model = collect(project, options, feedback, sink)
     if feedback is not None and feedback.isCanceled():
         raise Cancelled()
+    # Every artifact name is checked before anything is written, so a conflict never leaves
+    # a half-written folder. Images and styles are written first, then the reports.
+    out.check_writable(list(sink.files))
 
     renderers = {"json": render_json, "markdown": render_markdown}
     result = RunResult(model=model, problems=model.problems, redactions=model.redactions)
+    for name, data in sink.files.items():
+        result.files.append(out.write_bytes(name, data))
     for fmt in options.formats:
         result.files.append(out.write_text(OUTPUT_NAMES[fmt], renderers[fmt](model)))
     if feedback is not None:

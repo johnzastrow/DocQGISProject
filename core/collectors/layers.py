@@ -16,6 +16,7 @@ from qgis.core import (
 
 from ..model import FieldDoc, JoinDoc, LayerDoc, SourceDoc, TreeNode
 from ..redact import redact_mapping, redact_text
+from ..safe_paths import sanitize_name
 from .common import (
     crs_doc,
     decode_source,
@@ -169,7 +170,12 @@ def _join_docs(layer, project):
 # --------------------------------------------------------------------------- layers
 
 
-def collect_layer(layer, project, model, options, feedback=None):
+def layer_stem(index, layer):
+    """Stable, safe file-name stem for a layer's artifacts: 003_layer_name."""
+    return f"{index:03d}_{sanitize_name(layer.name(), 'layer', 40)}"
+
+
+def collect_layer(layer, project, model, options, feedback=None, sink=None, index=1):
     """Document one layer. Failures inside are recorded on the model, never raised."""
     project_dir = os.path.dirname(project.fileName()) if project.fileName() else None
     doc = LayerDoc(id=layer.id(), name=layer.name(), layer_type=enum_name(layer.type()))
@@ -239,10 +245,14 @@ def collect_layer(layer, project, model, options, feedback=None):
             }
     except Exception as exc:  # principle 7: record and continue with the next layer
         model.add_problem("error", "layers", f"'{doc.name}' could not be fully read: {safe_message(exc)}", doc.id)
+    if sink is not None:
+        from .styling import collect_style
+
+        doc.style = collect_style(layer, model, options, sink, layer_stem(index, layer))
     return doc
 
 
-def collect_layers(project, model, options, feedback=None):
+def collect_layers(project, model, options, feedback=None, sink=None):
     layers = ordered_layers(project)
     for n, layer in enumerate(layers):
         if feedback is not None:
@@ -251,5 +261,5 @@ def collect_layers(project, model, options, feedback=None):
             feedback.setProgress(10 + 80 * n / max(1, len(layers)))
         if not isinstance(layer, QgsMapLayer):
             continue
-        model.layers.append(collect_layer(layer, project, model, options, feedback))
+        model.layers.append(collect_layer(layer, project, model, options, feedback, sink, n + 1))
     return True

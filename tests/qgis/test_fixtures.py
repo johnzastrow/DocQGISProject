@@ -25,8 +25,16 @@ def test_styling_has_each_renderer(fixtures_dir):
     p = _read(fixtures_dir / "styling.qgz")
     types = {lyr.renderer().type() for lyr in p.mapLayers().values()}
     expected = {
-        "singleSymbol", "categorizedSymbol", "graduatedSymbol", "RuleRenderer", "invertedPolygonRenderer",
-        "25dRenderer", "pointCluster", "pointDisplacement", "heatmapRenderer", "nullSymbol",
+        "singleSymbol",
+        "categorizedSymbol",
+        "graduatedSymbol",
+        "RuleRenderer",
+        "invertedPolygonRenderer",
+        "25dRenderer",
+        "pointCluster",
+        "pointDisplacement",
+        "heatmapRenderer",
+        "nullSymbol",
     }
     assert expected <= types, f"missing renderers: {expected - types}"
     trails = p.mapLayersByName("multi-layer line")[0]
@@ -41,7 +49,17 @@ def test_layout_items(fixtures_dir):
     assert {"Main", "Atlas by zone", "Zone report"} <= names
     main = p.layoutManager().layoutByName("Main")
     types = {item.type() for item in main.items() if hasattr(item, "type")}
-    for t in ("LayoutMap", "LayoutLegend", "LayoutScaleBar", "LayoutLabel", "LayoutPicture",
-              "LayoutShape", "LayoutPolygon", "LayoutPolyline", "LayoutMarker", "LayoutFrame"):
+    for t in (
+        "LayoutMap",
+        "LayoutLegend",
+        "LayoutScaleBar",
+        "LayoutLabel",
+        "LayoutPicture",
+        "LayoutShape",
+        "LayoutPolygon",
+        "LayoutPolyline",
+        "LayoutMarker",
+        "LayoutFrame",
+    ):
         assert int(getattr(QgsLayoutItemRegistry, t)) in {int(x) for x in types}, f"{t} missing"
     assert p.layoutManager().layoutByName("Atlas by zone").atlas().enabled()

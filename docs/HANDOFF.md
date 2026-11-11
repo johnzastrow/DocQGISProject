@@ -1,8 +1,8 @@
-# Handoff: DocQGISProject (development, P1 done), 2026-11-11
+# Handoff: DocQGISProject (development, P2 done), 2026-11-11
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P1 committed locally, not pushed)
+## State (updated 2026-11-11, P1 and P2 committed locally, NOT pushed: owner said do not push)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
@@ -44,7 +44,20 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
 - Known limits to address later: unresolved invalid layers report no CRS; no per-layer timeout for feature
   counts (P7); custom properties are not yet collected (Tier B, P4); joins and virtual fields are documented
   but the fixtures have none yet (add in P2).
-- Next: P2 (styling collectors, QML export, symbol and legend images). Still open from P0: GUI click test.
+- P2 delivered: `core/collectors/styling.py`, `core/artifacts.py` (ArtifactSink: in-memory until the run
+  succeeds, budgets), `core/xmlwalk.py` (XML to data, `redact_dom`), `render/style_md.py`.
+  - Non-default detection: symbol layers vs `symbolLayerRegistry().symbolLayerMetadata(cls).createSymbolLayer({})`;
+    labels vs `QgsPalLayerSettings()` XML. JSON keeps every property plus a `non_default` list.
+  - QGIS 4 API notes: no raster renderer registry in Python (name table in styling.py); `~` on a StyleCategory
+    enum gives an int that `exportNamedStyle` rejects (combine with `|`); layer-level
+    `legendSymbologyItems()` is deprecated (use the renderer's); `importNamedStyle(doc, categories)` takes 2 args.
+  - QML excludes CustomProperties and is redacted structurally (never as text: `pass="0"` false positive).
+  - Test zips (gitignored): `dist/DocQGISProject-0.1.0-dev-P1.zip`, `dist/DocQGISProject-0.1.0-dev-P2.zip`.
+- P2 verification: `make check` green (78 unit tests), `make qgis-test` 22 passed, build 59 KB, engine runs
+  from the installed zip on the styling fixture (18 layers, 0 problems).
+- Not covered yet: diagrams, 3D renderers, mesh/point-cloud/vector-tile styling (no fixtures), layer-level
+  feature blending, per-layer map thumbnails (planned with layout renders in P3).
+- Next: P3 (layouts: every item, page and item images, QPT; atlas and report). Still open: GUI click test.
 
 ## Owner requirements (verbatim intent)
 

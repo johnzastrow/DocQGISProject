@@ -19,6 +19,8 @@ class DocOptions:
     redact: bool = True  # remove credentials from every output
     include_network_layers: bool = False  # resolve web services and databases too
     overwrite: bool = False  # replace files in the output folder not written by this plugin
+    images: bool = True  # legend and symbol images
+    image_dpi: int = 120  # 48 to 600
 
     def validate(self):
         formats = tuple(self.formats)
@@ -32,7 +34,9 @@ class DocOptions:
             raise ValueError(f"format(s) not implemented yet in this development build: {pending}")
         if self.detail not in DETAIL_LEVELS:
             raise ValueError(f"unknown detail level {self.detail!r}; allowed: {list(DETAIL_LEVELS)}")
-        for name in ("load_data", "redact", "include_network_layers", "overwrite"):
+        if isinstance(self.image_dpi, bool) or not isinstance(self.image_dpi, int) or not 48 <= self.image_dpi <= 600:
+            raise ValueError("image_dpi must be a whole number from 48 to 600")
+        for name in ("load_data", "redact", "include_network_layers", "overwrite", "images"):
             if not isinstance(getattr(self, name), bool):
                 raise ValueError(f"option {name} must be true or false")
         self.formats = formats

@@ -97,6 +97,7 @@ class LayerDoc:
     keywords: dict = field(default_factory=dict)
     notes: Optional[str] = None  # plain text
     raster: Optional[dict] = None  # band_count, width, height, data_type, pixel_size
+    style: Optional[dict] = None  # renderer, labeling, legend, qml, named_styles (collectors/styling.py)
 
 
 @dataclass

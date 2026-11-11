@@ -19,15 +19,22 @@ def _model():
     m = DocModel()
     m.generator = {"plugin_version": "0.1.0-dev", "qgis_version": "4.2", "generated_at": "2026-11-11T00:00:00+00:00"}
     m.options = DocOptions().to_dict()
-    m.project = ProjectDoc(title=HOSTILE, file_name="p.qgz", path_storage="Relative", crs=CrsDoc("EPSG:4326", "WGS 84", True))
+    m.project = ProjectDoc(
+        title=HOSTILE, file_name="p.qgz", path_storage="Relative", crs=CrsDoc("EPSG:4326", "WGS 84", True)
+    )
     lyr = LayerDoc(
         id="l1",
         name=HOSTILE,
         layer_type="Vector",
         valid=True,
         data_loaded=True,
-        source=SourceDoc(provider="ogr", uri="./d.gpkg|layername=t", parts={"path": "/x/d.gpkg", "layerName": "t"},
-                         path="/x/d.gpkg", path_relative="./d.gpkg"),
+        source=SourceDoc(
+            provider="ogr",
+            uri="./d.gpkg|layername=t",
+            parts={"path": "/x/d.gpkg", "layerName": "t"},
+            path="/x/d.gpkg",
+            path_relative="./d.gpkg",
+        ),
         fields=[FieldDoc(0, "a|b", type_name="String", expression="\"a\" || '|'", origin="Expression")],
         extent=[0.0, 0.0, 1.0, float("nan")],
     )
@@ -77,7 +84,17 @@ def test_json_is_strict_and_structured():
 
 @pytest.mark.parametrize(
     "kwargs",
-    [{"formats": ("json", "docx")}, {"formats": ()}, {"detail": "everything"}, {"redact": "yes"}, {"formats": ("pdf",)}],
+    [
+        {"formats": ("json", "docx")},
+        {"formats": ()},
+        {"detail": "everything"},
+        {"redact": "yes"},
+        {"formats": ("pdf",)},
+        {"image_dpi": 10},
+        {"image_dpi": 120.5},
+        {"image_dpi": True},
+        {"images": 1},
+    ],
 )
 def test_options_reject_invalid(kwargs):
     with pytest.raises(ValueError):

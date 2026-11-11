@@ -44,7 +44,18 @@ def test_basic_project(run):
     zones = sem["layers"][0]
     assert zones["valid"] and zones["feature_count"] == 9
     assert zones["source"]["path_relative"] == "./fixture_data.gpkg"
-    assert [f["name"] for f in zones["fields"]] == ["fid", "id", "name", "zone", "area_ha"]
+    assert [f["name"] for f in zones["fields"]] == ["fid", "id", "name", "zone", "area_ha", "area_km2"]
+    virtual = zones["fields"][5]
+    assert virtual["origin"] == "Expression" and virtual["expression"] == '"area_ha" / 100'
+    assert zones["fields"][2]["alias"] == "Zone name"
+    join = sem["layers"][1]["joins"][0]
+    assert (join["join_layer_name"], join["join_field"], join["target_field"], join["prefix"]) == (
+        "zones",
+        "id",
+        "zone_id",
+        "zone_",
+    )
+    assert join["fields_subset"] == ["name"] and join["cached"]
     # relations, variables, themes, bookmarks
     rel = sem["relations"][0]
     assert rel["referenced_layer_name"] == "zones" and rel["referencing_layer_name"] == "sites"
@@ -62,14 +73,16 @@ def test_basic_project(run):
     for heading in ("## 2. How to recreate this project", "## 6. Relations", "## 8. Map themes"):
         assert heading in md
     assert "Sites in zone" in md and "Zones only" in md
-    assert set(os.listdir(out)) == {"project.json", "report.md", ".docqgisproject-manifest.json"}
+    assert set(os.listdir(out)) == {"project.json", "report.md", ".docqgisproject-manifest.json", "images", "styles"}
 
 
 def test_sources_redacted_and_remote_not_contacted(run, fake_secrets):
     result, data, md, out = run("sources")
     assert len(fake_secrets) == 6
-    for path in out.iterdir():
-        text = path.read_text(encoding="utf-8")
+    files = [p for p in out.rglob("*") if p.is_file()]
+    assert any(p.suffix == ".qml" for p in files)
+    for path in files:
+        text = path.read_bytes().decode("utf-8", errors="replace")
         for secret in fake_secrets:
             assert secret not in text, f"{secret} leaked into {path.name}"
     by_name = {lyr["name"]: lyr for lyr in data["semantic"]["layers"]}
@@ -78,7 +91,7 @@ def test_sources_redacted_and_remote_not_contacted(run, fake_secrets):
     assert pg["source"]["parts"]["password"] == {"redacted": "password"}
     assert pg["source"]["parts"]["key"] == "id"  # primary-key column survives
     assert by_name["tiles with key"]["source"]["remote"]
-    assert data["redactions"] == {"user": 1, "password": 1, "userinfo": 1, "api_key": 1, "token": 1}
+    assert data["redactions"] == {"user": 1, "password": 1, "userinfo": 1, "api_key": 1, "token": 1}  # each secret once
     severities = {(p["severity"], p["layer_id"] is not None) for p in data["problems"]}
     assert ("warning", True) in severities  # the missing file
     # the hostile layer name is inert in Markdown

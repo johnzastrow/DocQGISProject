@@ -26,9 +26,29 @@ CORPUS = [
         ["t.example.com"],
     ),
     ("https://maps.example.com/wms?SERVICE=WMS&key=K-777&LAYERS=a", ["K-777"], ["SERVICE=WMS", "LAYERS=a"]),
-    ("https://zoe-u:pw42@data.example.com/file.geojson", ["zoe-u", "pw42"], ["data.example.com/file.geojson"]),  # pragma: allowlist secret
+    # Mixed encoding, as QGIS writes it in QML: literal "@" but encoded "?" and "=".
+    (
+        "type=xyz&url=https://mx-user:MX-PASS@t.example.com/%7Bz%7D.png%3Fapi_key%3DMX-KEY-1&zmax=19",  # pragma: allowlist secret
+        ["mx-user", "MX-PASS", "MX-KEY-1"],
+        ["t.example.com", "zmax=19"],
+    ),
+    # The same inside XML, where "&" is "&amp;".
+    (
+        "<datasource>type=xyz&amp;url=https://t.example.com/%7Bz%7D.png%3Fapi_key%3DXML-KEY-2&amp;zmin=0</datasource>",
+        ["XML-KEY-2"],
+        ["zmin=0", "<datasource>"],
+    ),
+    (
+        "https://zoe-u:pw42@data.example.com/file.geojson",  # pragma: allowlist secret
+        ["zoe-u", "pw42"],
+        ["data.example.com/file.geojson"],
+    ),
     ("/vsicurl/https://bucket.example.com/a.tif?sig=SIGNATURE1&se=2030", ["SIGNATURE1"], ["se=2030"]),
-    ("contextualWMSLegend=0&crs=EPSG:3857&http-header:Authorization=Bearer%20XYZ&url=https://h/wms", ["XYZ"], ["crs=EPSG:3857"]),
+    (
+        "contextualWMSLegend=0&crs=EPSG:3857&http-header:Authorization=Bearer%20XYZ&url=https://h/wms",
+        ["XYZ"],
+        ["crs=EPSG:3857"],
+    ),
     ("url=https://h/wms&authcfg=abc1234&layers=x", ["abc1234"], ["layers=x"]),
     ("crs=EPSG:4326&url=https://h/wfs&typename=t&username=frank&password=pw", ["frank", "pw"], ["typename=t"]),
     ("token=ghp_abcdefghij&other=1", ["ghp_abcdefghij"], ["other=1"]),
@@ -55,7 +75,7 @@ def test_empty_password_is_not_counted():
 
 
 def test_postgres_key_column_is_not_a_secret():
-    out, kinds = redact_text("dbname=gis key='gid' table=\"public\".\"t\"")
+    out, kinds = redact_text('dbname=gis key=\'gid\' table="public"."t"')
     assert "key='gid'" in out and not kinds
 
 

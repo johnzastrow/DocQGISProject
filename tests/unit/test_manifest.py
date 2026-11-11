@@ -14,11 +14,7 @@ def test_every_top_level_module_is_listed():
 
 def test_every_package_is_listed():
     dirs = set(manifest()["DIRS"])
-    packages = {
-        p.parent.name
-        for p in ROOT.glob("*/__init__.py")
-        if p.parent.name not in NOT_SHIPPED
-    }
+    packages = {p.parent.name for p in ROOT.glob("*/__init__.py") if p.parent.name not in NOT_SHIPPED}
     assert packages <= dirs, f"packages missing from DIRS: {sorted(packages - dirs)}"
 
 

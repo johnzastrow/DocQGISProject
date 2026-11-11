@@ -65,7 +65,7 @@ def fake_secrets():
     gen = Path(__file__).resolve().parents[1] / "fixtures" / "make_fixtures.py"
     text = gen.read_text(encoding="utf-8")
     start = text.index("FAKE_SECRETS = (")
-    return tuple(s.strip().strip('"') for s in text[start:text.index(")", start)].split("(", 1)[1].split(","))
+    return tuple(s.strip().strip('"') for s in text[start : text.index(")", start)].split("(", 1)[1].split(","))
 
 
 @pytest.fixture(scope="session")
