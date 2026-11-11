@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- 2026-11-11: New plugin icon: the eye from the DocQGISProject logo, with a white outline so it
+  stays readable on dark themes. The logo itself is in `docs/logo.png` and, traced with Inkscape,
+  `docs/logo.svg`.
 - 2026-11-11: The JSON gains a `rebuild` part (P5), and its key list is now `schema, generator,
   options, semantic, rebuild, problems, redactions, coverage, tier_b`.
 - 2026-11-11: Output files now get normal user-file permissions (0o666 minus the umask,
