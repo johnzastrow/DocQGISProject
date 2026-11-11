@@ -1,0 +1,63 @@
+# .github/workflows/ci.yml
+#
+# On every push and pull request: the same gates as `make check` plus the
+# self-verifying zip build. The QGIS integration tier (tests/qgis) needs QGIS's
+# own Python and runs locally with `make qgis-test`; it is not part of this job.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with release.yml and the local ruff (pin exactly).
+  RUFF_VERSION: "0.15.19"
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: false
+
+      - name: Lint (ruff)
+        run: |
+          uv run --no-project --with "ruff==$RUFF_VERSION" ruff check .
+          uv run --no-project --with "ruff==$RUFF_VERSION" ruff format --check .
+
+      - name: Style (flake8 - authoritative)
+        run: uv run --no-project --with flake8 flake8 .
+
+      - name: Security (bandit)
+        run: uv run --no-project --with bandit bandit -r . -x ./test,./tests,./.git,./help,./docs
+
+      - name: Secrets
+        run: |
+          rm -rf .ruff_cache .pytest_cache
+          uv run --no-project --with detect-secrets detect-secrets scan --all-files \
+            | python -c "import json,sys; r=json.load(sys.stdin)['results']; print(json.dumps(r, indent=2)); sys.exit(1 if r else 0)"
+
+      - name: Unit tests
+        run: uv run --no-project --with pytest python -m pytest tests/unit -q
+
+      - name: Build plugin zip (self-verifying)
+        run: bash scripts/build_plugin.sh
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: DocQGISProject-zip
+          path: dist/DocQGISProject.zip
+          if-no-files-found: error

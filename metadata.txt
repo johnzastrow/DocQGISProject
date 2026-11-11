@@ -1,0 +1,21 @@
+[general]
+name=DocQGISProject
+qgisMinimumVersion=4.0
+qgisMaximumVersion=4.99
+supportsQt6=True
+description=Documents a QGIS project for people and machines: Markdown, HTML, PDF and rebuild-grade JSON.
+about=DocQGISProject writes a complete description of a QGIS project: layers and data sources (credentials redacted), styling, print layouts and every layout item, project settings, metadata and quality checks. People get readable Markdown, HTML and PDF reports with rendered images; machines get a schema-versioned JSON file complete enough to rebuild the project. The plugin is read only: it never modifies the project or its data and never runs project macros. Development build: the documentation engine is not implemented yet.
+version=0.1.0-dev
+author=John Zastrow
+email=1213646+johnzastrow@users.noreply.github.com
+homepage=https://github.com/johnzastrow/DocQGISProject
+tracker=https://github.com/johnzastrow/DocQGISProject/issues
+repository=https://github.com/johnzastrow/DocQGISProject
+license=GPL-2.0-or-later
+tags=documentation,project,report,layout,metadata,export,json,markdown,html,pdf
+category=Plugins
+icon=icons/icon.svg
+experimental=True
+deprecated=False
+hasProcessingProvider=yes
+changelog=0.1.0-dev: project scaffold (menu entry, empty Processing provider). No documentation output yet.

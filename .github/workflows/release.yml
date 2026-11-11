@@ -1,0 +1,95 @@
+# .github/workflows/release.yml
+#
+# On a v* tag: run the same gates you run locally, build the zip with the SAME
+# script (scripts/build_plugin.sh reading plugin_build.conf), and cut a GitHub
+# Release with the zip attached.
+#
+# Keeping CI and local on one script is the point - a divergent CI file list is
+# how "works locally, broken in the release" happens.
+#
+# plugins.qgis.org has no auto-publish: after this succeeds, download the asset,
+# verify it, and upload manually to
+#   https://plugins.qgis.org/plugins/<slug>/version/add/
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write        # needed to create the Release
+
+env:
+  # SET THIS to the ruff version you use locally, and keep the two in step.
+  # Pin it EXACTLY (==, not >=): a newer ruff formats differently and fails a
+  # `ruff format --check` that passed on someone's laptop. Locally, match it with
+  #   uvx --from ruff==$RUFF_VERSION ruff format .
+  # The value below is only a starting point - bump it deliberately, not by drift.
+  RUFF_VERSION: "0.15.19"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        # Exact pin, unlike the others: setup-uv publishes no floating major
+        # tag past v7, so `@v9` does not resolve. Bump this deliberately.
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: false   # no lockfile here; caching would never invalidate
+
+      # Version comes from RUFF_VERSION above - one place to change it.
+      - name: Lint (ruff)
+        run: uv run --no-project --with "ruff==$RUFF_VERSION" ruff check .
+
+      - name: Style (flake8 - authoritative)
+        run: uv run --no-project --with flake8 flake8 .
+
+      - name: Security (bandit)
+        run: uv run --no-project --with bandit bandit -r . -x ./test,./tests,./.git,./help,./docs
+
+      - name: Secrets
+        run: |
+          rm -rf .ruff_cache .pytest_cache
+          uv run --no-project --with detect-secrets detect-secrets scan --all-files \
+            | python -c "import json,sys; r=json.load(sys.stdin)['results']; print(json.dumps(r, indent=2)); sys.exit(1 if r else 0)"
+
+      # Pure-Python tests only. Anything importing qgis must run under QGIS's
+      # own Python and does not belong in this job.
+      - name: Unit tests
+        run: |
+          uv run --no-project --with pytest python -m pytest tests/unit -q
+
+      - name: Build plugin zip
+        run: bash scripts/build_plugin.sh
+
+      - name: Resolve artifact path
+        id: art
+        run: |
+          PLUGIN="$(sed -n 's/^PLUGIN="\{0,1\}\([A-Za-z0-9_-]*\)"\{0,1\}.*/\1/p' plugin_build.conf | head -1)"
+          echo "zip=dist/${PLUGIN}.zip" >> "$GITHUB_OUTPUT"
+          echo "plugin=${PLUGIN}"  >> "$GITHUB_OUTPUT"
+
+      # Re-assert the invariants in CI, not just in the build script.
+      - name: Verify artifact
+        run: |
+          ZIP="${{ steps.art.outputs.zip }}"
+          unzip -l "$ZIP"
+          unzip -p "$ZIP" "${{ steps.art.outputs.plugin }}/metadata.txt" \
+            | grep -E '^version=|^qgisMinimumVersion=|^qgisMaximumVersion=|^experimental='
+          test "$(unzip -l "$ZIP" | grep -ciE 'resources\.py|__pycache__|\.git/|\.sh$')" = "0"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "${{ steps.art.outputs.zip }}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "See CHANGELOG.md. Upload the attached zip to plugins.qgis.org."

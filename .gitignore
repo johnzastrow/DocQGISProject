@@ -6,3 +6,5 @@ dist/
 *.zip
 .venv/
 .DS_Store
+tests/fixtures/generated/
+*.orig-*

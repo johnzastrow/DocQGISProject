@@ -2,15 +2,28 @@
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2).
 
-## State
+## State (updated 2026-11-11, P0 done and pushed)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
-- Contents: stub `README.md`, `.gitignore`, `docs/DESIGN.md` (draft 2), this file. **No plugin code yet. No licence file yet. Nothing released.**
-- The owner has NOT yet signed off on draft 2. Three decisions are open (the defaults below are my recommendations, not approvals):
-  1. Ship the rebuilder (JSON to new project, Processing algorithm `rebuildproject`) in 0.1: recommended yes.
-  2. Screenshots of QGIS dialogs off by default; when on, project dialogs plus user-selected layers, all tabs except source and authentication pages: recommended.
-  3. JSON never holds credentials; a rebuild takes them from QGIS authentication configurations or the user: recommended.
-  Other open questions Q1, Q2, Q4 to Q7, Q10 are in section 12 of the design, each with a recommended default. Ask the owner to confirm or change, then start P0.
+- The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
+  decisions below and for Q1, Q2, Q4 to Q7, Q10 (section 12 of the design). Re-confirm before P5 (rebuilder) and P6 (screenshots).
+  1. Ship the rebuilder (`rebuildproject`) in 0.1.
+  2. Dialog screenshots off by default; when on, project dialogs plus user-selected layers, all tabs except source and authentication pages.
+  3. JSON never holds credentials.
+- P0 delivered: plugin skeleton (`__init__.py`, `docqgisproject.py`, `processing_provider/provider.py`, empty `core/`,
+  `core/collectors/`, `render/`, `gui/`), `icons/icon.svg`, `metadata.txt` (0.1.0-dev, experimental, QGIS 4.0 to 4.99),
+  `LICENSE` (GPL-2), `CHANGELOG.md`, `plugin_build.conf`, skill `scripts/` and `Makefile`, `ruff.toml`, `setup.cfg`,
+  `.github/workflows/ci.yml` and `release.yml`, `tests/unit` (12 tests), `tests/qgis` (4 tests, env-gated),
+  `tests/fixtures/make_fixtures.py` (basic, styling, layout projects plus a GeoPackage).
+- P0 verification: `make check` green (ruff, flake8, Bandit 0 issues, detect-secrets no findings, unit tests);
+  `make qgis-test` 4 passed; `make build` self-verify OK (15 KB); built zip loads in `qgis_process` 4.2.3 from a
+  temporary profile and registers the "Documentation" provider. CI first run is on the P0 push; check it with `gh run list`.
+- Not yet done for P0 acceptance: a click test in the GUI (`make deploy`, restart QGIS, check Project > Document Project...).
+- Deviations from the skill templates: tests live in `tests/unit` (not `test`); zip goes to `dist/`; the Makefile
+  `secrets` target is renamed `leak-scan` because detect-secrets flags the template's `secrets:` target as a
+  secret keyword (a bug in the skill template too); the secrets step now fails on findings (the template's
+  `detect-secrets scan` always exits 0); `scripts/` is excluded from `ruff format` to stay byte-identical to the skill.
+- Next: P1 (model, project, layers, sources, redaction; JSON and Markdown). Hostile-project fixture is deferred to P4.
 
 ## Owner requirements (verbatim intent)
 
