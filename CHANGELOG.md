@@ -93,6 +93,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- 2026-11-11: `make lint` now runs the same pinned ruff and the same `ruff format --check` as CI.
+  It had passed a README change that CI then rejected.
 - 2026-11-11: A project file was always reported as having "unsaved changes" (coverage note).
   QGIS flags a project read without loading its layers as changed, and loading layer data does
   too. A file the plugin has just read is now treated as saved; only the open project's own

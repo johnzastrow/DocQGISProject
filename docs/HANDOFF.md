@@ -140,6 +140,15 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
   - Tests use stand-in dialogs with the same object names; the real dialogs are NOT exercised headless.
     Test windows must be deleted before `exitQgis` (an autouse fixture in test_gui.py), or the process exits 139.
 - P6 verification: 163 unit tests, 79 QGIS tests, gates green, build OK.
+- P7 started 2026-11-11:
+  - `qgis_process` smoke test passed from the built zip, using a throwaway profile:
+    `PATH=/usr/bin:/bin QGIS_CUSTOM_CONFIG_PATH=<tmp> QGIS_PLUGINPATH=<unzipped> qgis_process plugins enable
+    DocQGISProject`, then `qgis_process run docqgisproject:documentproject -- INPUT=... OUTPUT_FOLDER=...`.
+    Without the system PATH, qgis_process embeds the Homebrew Python and finds no PyQt6.
+  - Fixed: every project file was reported as having unsaved changes (QGIS flags a project read with
+    DontResolveLayers as dirty); the runner now passes `unsaved=False` for files it read itself.
+  - Fixed: `make lint` now matches CI (pinned ruff, `ruff format --check`, which also formats Python
+    blocks in Markdown). P6's push failed CI on the README for this reason; fixed in the next commit.
 - Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
   smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
   version 0.1.0, tag, plugins.qgis.org upload).
