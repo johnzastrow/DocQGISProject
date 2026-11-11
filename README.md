@@ -42,8 +42,12 @@ from DocQGISProject.core.rebuild import rebuild_project
 result = document_project(QgsProject.instance(), "/path/to/output_folder", DocOptions())
 
 # A new project from the JSON; map moved data folders and attach logins by source id.
-rebuild_project("/path/to/output_folder/project.json", "/path/to/new.qgz",
-                source_map={"/old/data": "/new/data"}, auth_map={"s3": "ab12cd3"})
+rebuild_project(
+    "/path/to/output_folder/project.json",
+    "/path/to/new.qgz",
+    source_map={"/old/data": "/new/data"},
+    auth_map={"s3": "ab12cd3"},
+)
 ```
 
 Options: `formats` (json, markdown, html, pdf; default all), `detail` (summary, standard, full),

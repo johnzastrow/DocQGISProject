@@ -132,13 +132,18 @@ def _walk(el, path, stats, depth=0):
         entry["text"] = (text[:MAX_VALUE_CHARS] + "...") if len(text) > MAX_VALUE_CHARS else text
 
 
-def collect_tier_b(project, model, options):
-    """Fill model.coverage (always) and model.tier_b (detail == "full")."""
+def collect_tier_b(project, model, options, unsaved=None):
+    """Fill model.coverage (always) and model.tier_b (detail == "full").
+
+    `unsaved`: whether the project had unsaved changes BEFORE collection. Loading layer data
+    (collectors/layers.py resolve_layer) marks a project dirty, so isDirty() at this point would
+    report changes the plugin made itself.
+    """
     path = project.fileName()
     if not path or not os.path.isfile(path):
         model.add_problem("info", "coverage", "The project is not saved to a file; the coverage report was skipped.")
         return
-    if project.isDirty():
+    if project.isDirty() if unsaved is None else unsaved:
         model.add_problem(
             "info", "coverage", "The project has unsaved changes; the coverage report reflects the saved file."
         )

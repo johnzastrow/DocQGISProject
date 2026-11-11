@@ -71,12 +71,16 @@ def open_project(path):
     return project
 
 
-def collect(project, options, feedback=None, sink=None, screenshotter=None):
+def collect(project, options, feedback=None, sink=None, screenshotter=None, unsaved=None):
     """Run every collector on an open project and return the DocModel.
 
     `screenshotter(project, model, options, sink, feedback)` takes the dialog screenshots. Only
     the plugin dialog passes one (gui/screenshots.py): core/ stays free of QGIS GUI code, and
     Processing, console and headless runs have no QGIS window to grab.
+
+    `unsaved`: whether the project has changes not in its file. None means ask the project, but
+    QGIS flags a project read with DontResolveLayers as dirty, and resolving layers does too, so
+    document_project passes False for a project it has just read from a file.
     """
     sink = sink if sink is not None else ArtifactSink(images=options.images)
     model = DocModel()
@@ -95,6 +99,8 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None):
             model.add_problem("error", section, f"could not be read: {safe_message(exc)}")
             return None
 
+    if unsaved is None:
+        unsaved = project.isDirty()  # before collectors resolve layers (which marks the project dirty)
     step("project", collect_project, project, model)
     model.layer_tree = step("layer tree", collect_tree, project)
     if feedback is not None:
@@ -120,7 +126,7 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None):
             )
         elif step("screenshots", screenshotter, project, model, options, sink, feedback) is False:
             raise Cancelled()
-    step("coverage", collect_tier_b, project, model, options)
+    step("coverage", collect_tier_b, project, model, options, unsaved)
     if "json" in options.formats:
         step("rebuild", collect_rebuild, project, model, options)
     if not options.redact:
@@ -139,9 +145,10 @@ def document_project(project_or_path, output_folder, options=None, feedback=None
     names = [OUTPUT_NAMES[f] for f in options.formats]
     out.check_writable(names)  # fail before doing any work if a file cannot be written
 
-    project = project_or_path if isinstance(project_or_path, QgsProject) else open_project(project_or_path)
+    from_file = not isinstance(project_or_path, QgsProject)
+    project = open_project(project_or_path) if from_file else project_or_path
     sink = ArtifactSink(images=options.images)
-    model = collect(project, options, feedback, sink, screenshotter)
+    model = collect(project, options, feedback, sink, screenshotter, unsaved=False if from_file else None)
     if feedback is not None and feedback.isCanceled():
         raise Cancelled()
     # Every artifact name is checked before anything is written, so a conflict never leaves

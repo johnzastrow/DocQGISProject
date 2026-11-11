@@ -93,6 +93,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- 2026-11-11: A project file was always reported as having "unsaved changes" (coverage note).
+  QGIS flags a project read without loading its layers as changed, and loading layer data does
+  too. A file the plugin has just read is now treated as saved; only the open project's own
+  unsaved changes are reported.
 - 2026-11-11: Variables (project, layer and layout) are stored as two parallel name and value
   lists, so XML redaction never saw a value next to its name: a secret-named variable such as
   `service_token` kept its value in the XML-based outputs (Tier B samples did not include it, but

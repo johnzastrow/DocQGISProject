@@ -161,3 +161,30 @@ def test_live_project_object_is_accepted_and_untouched(plugin_pkg, fixtures_dir,
     result = document_project(project, str(tmp_path))
     assert len(result.model.layers) == 5
     assert project.isDirty() == before
+
+
+def test_no_false_unsaved_changes_note(plugin_pkg, fixtures_dir, tmp_path):
+    """Loading layer data marks a project dirty; a freshly read file must not be reported as
+    having unsaved changes."""
+    from DocQGISProject.core.runner import document_project
+
+    result = document_project(str(fixtures_dir / "basic.qgz"), str(tmp_path))
+    assert not [p for p in result.problems if "unsaved changes" in p.message]
+
+
+def test_real_unsaved_changes_are_reported(plugin_pkg, fixtures_dir, tmp_path):
+    from qgis.core import QgsProject
+
+    from DocQGISProject.core.options import DocOptions
+    from DocQGISProject.core.runner import document_project
+
+    project = QgsProject.instance()
+    assert project.read(str(fixtures_dir / "basic.qgz"))
+    try:
+        project.setDirty(False)
+        project.setTitle("Changed but not saved")
+        assert project.isDirty()
+        result = document_project(project, str(tmp_path), DocOptions(formats=("json",), images=False))
+        assert [p for p in result.problems if "unsaved changes" in p.message]
+    finally:
+        project.clear()
