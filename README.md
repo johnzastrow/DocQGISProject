@@ -6,34 +6,55 @@ A QGIS 4 plugin that documents a QGIS project for two audiences from one run:
   rendered layout pages, symbols and legends.
 - **Machines:** a schema-versioned JSON file complete enough to rebuild the project programmatically.
 
-**Status: development (phase P4).** Outputs: `project.json`, `report.md`, `report.html`
-(self-contained, no JavaScript) and `report.pdf`, plus a coverage appendix showing how much of the
-project file the report explains, and a fonts and files check. The documentation engine writes `project.json` and `report.md`
-covering project settings, the layer tree, layers and their sources (credentials redacted), fields,
-joins, relations, variables, map themes, bookmarks, full styling (renderers, every symbol layer,
-labels, raster rendering) and print layouts (every item with position and size, tables, atlas,
-reports). Images: legend swatches, layer thumbnails and an overview map (`images/`), layout pages and
-item close-ups (`layouts/`). Files to rebuild with: one QML style per layer (`styles/`) and one
-template per layout (`layouts/*.qpt`). The rebuilder (P5) and the dialog and Processing algorithm
-(P6) are still to come.
-See [`docs/DESIGN.md`](docs/DESIGN.md) for the design and delivery plan.
+**Status: development (phase P6 of 7).** Everything in the design works; the release work (P7) remains.
 
-Until the dialog lands, run it from the QGIS Python Console:
+What one run writes:
+
+- `project.json`: everything about the project, plus a lossless rebuild payload (the project file
+  with credentials removed and data sources listed separately). Described by
+  [`docs/schema/docqgisproject-1.schema.json`](docs/schema/docqgisproject-1.schema.json).
+- `report.md`, `report.html` (one self-contained page, no JavaScript) and `report.pdf`: project
+  settings, layer tree, layers and sources, fields, joins, relations, variables, map themes,
+  bookmarks, full styling and labels, print layouts with every item, fonts and files, warnings,
+  how much of the project file the report explains, and how to rebuild.
+- Images (`images/`, `layouts/`), one QML style per layer (`styles/`) and one template per layout
+  (`layouts/*.qpt`). Optionally, screenshots of the QGIS dialogs.
+
+## Using it
+
+**Dialog:** *Project > Document Project...* Choose the open project or a project file, an output
+folder, formats and options, then *Document*. Progress, *Cancel run* and *Open report* are in the
+dialog; every option has a tooltip and is remembered. Dialog screenshots (off by default) are only
+available here, only for the open project: each QGIS dialog opens briefly and closes with Cancel,
+pages that show data sources or logins are skipped, and fields with paths or addresses are blacked out.
+
+**Processing:** *Processing Toolbox > Documentation*: *Document project* and *Rebuild project from
+JSON*. Also usable from models, batch mode and `qgis_process`.
+
+**Python console:**
 
 ```python
 from DocQGISProject.core.runner import document_project
 from DocQGISProject.core.options import DocOptions
+from DocQGISProject.core.rebuild import rebuild_project
 
 # The open project, or a path to a .qgz/.qgs file (read without touching the open project).
 result = document_project(QgsProject.instance(), "/path/to/output_folder", DocOptions())
-print(result.files, result.redactions)
+
+# A new project from the JSON; map moved data folders and attach logins by source id.
+rebuild_project("/path/to/output_folder/project.json", "/path/to/new.qgz",
+                source_map={"/old/data": "/new/data"}, auth_map={"s3": "ab12cd3"})
 ```
 
-Options: `load_data` (default on: load local layers for counts and extents), `redact` (default on),
-`include_network_layers` (default off: web services and databases are never contacted),
-`overwrite` (default off: files in the folder that this plugin did not write are never replaced),
-`images` (default on), `image_dpi` (default 120), `formats` (default all of json, markdown, html,
-pdf) and `detail` (summary, standard, full; full adds the list of every unexplained project-file element).
+Options: `formats` (json, markdown, html, pdf; default all), `detail` (summary, standard, full),
+`images` and `image_dpi` (default on, 120), `embed_resources` (SVG and images in the JSON; default
+on), `load_data` (open local data for counts and extents; default on), `redact` (default on),
+`include_network_layers` (default off: web services and databases are never contacted), `overwrite`
+(default off: files this plugin did not write are never replaced), `screenshots` and
+`screenshot_layers` (dialog only).
+
+The rebuilder treats the JSON as untrusted: it checks it in full first, removes macros and other
+Python code, refuses absolute data paths you have not mapped, and never overwrites a file.
 
 Requirements: QGIS 4.0 or later (Qt 6). Licence: GPL-2.0-or-later.
 

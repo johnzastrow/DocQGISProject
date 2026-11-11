@@ -76,7 +76,7 @@ def test_markdown_without_redaction_has_banner():
 def test_json_is_strict_and_structured():
     data = json.loads(render_json(_model()))
     assert data["schema"] == "docqgisproject/1"
-    assert set(data) == {"schema", "generator", "options", "semantic", "rebuild", "problems", "redactions", "coverage", "tier_b"}
+    assert set(data) == {"schema", "generator", "options", "semantic", "rebuild", "screenshots", "problems", "redactions", "coverage", "tier_b"}
     lyr = data["semantic"]["layers"][0]
     assert lyr["extent"][3] is None  # NaN became null
     assert data["semantic"]["variables"][0]["value"] == {"redacted": "api_key"}
@@ -93,11 +93,23 @@ def test_json_is_strict_and_structured():
         {"image_dpi": 120.5},
         {"image_dpi": True},
         {"images": 1},
+        {"embed_resources": "no"},
+        {"screenshots": "desktop"},
+        {"screenshots": "layers"},  # needs screenshot_layers
+        {"screenshots": "layers", "screenshot_layers": ("",)},
+        {"screenshots": "layers", "screenshot_layers": (1,)},
+        {"screenshots": "all", "screenshot_layers": tuple(f"l{i}" for i in range(201))},
     ],
 )
 def test_options_reject_invalid(kwargs):
     with pytest.raises(ValueError):
         DocOptions(**kwargs).validate()
+
+
+def test_options_screenshot_layers_round_trip():
+    o = DocOptions(screenshots="layers", screenshot_layers=["a", "b"]).validate()
+    assert o.screenshot_layers == ("a", "b")
+    assert o.to_dict()["screenshot_layers"] == ["a", "b"]
 
 
 def test_rebuild_appendix():
@@ -121,3 +133,22 @@ def test_rebuild_appendix():
     assert lint_markdown(md) == []
     m.rebuild = None
     assert "This run has no rebuild data" in render_markdown(m)
+
+
+def test_screenshot_appendix():
+    m = _model()
+    assert "No dialog screenshots" in render_markdown(m)
+    m.screenshots = {
+        "environment": {"QGIS": "4.2.3", "Style": "Fusion"},
+        "items": [
+            {"kind": "project", "target": "project", "page": "General", "image": "images/screenshots/project_01.png"},
+            {"kind": "project", "target": "project", "page": "Data Sources", "image": None, "skipped": "it lists data sources"},
+            {"kind": "layer", "target": HOSTILE, "target_id": "l1", "page": "Symbology",
+             "image": "images/screenshots/layer_l1_01.png"},
+        ],
+    }
+    md = render_markdown(m)
+    assert "![Project Properties > General](images/screenshots/project_01.png)" in md
+    assert "**Data Sources**: skipped, it lists data sources." in md
+    assert "### Layer Properties: " in md and "<script>" not in md.split("### Layer Properties: ")[1].split("\n")[0]
+    assert lint_markdown(md) == []

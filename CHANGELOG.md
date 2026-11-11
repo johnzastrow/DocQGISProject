@@ -15,6 +15,20 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-11: P6 dialog and Processing.
+  - *Project > Document Project...* opens a dialog with every option (each with a tooltip, all
+    remembered), the open project or a project file, progress, *Cancel run*, *Open report* and a
+    summary (files, share of the project file explained, warnings, credentials removed).
+  - Processing provider "Documentation": *Document project* (`docqgisproject:documentproject`) and
+    *Rebuild project from JSON* (`docqgisproject:rebuildproject`, folder and login mappings as
+    `old=new;...`). Both run on the main thread because they read the open project.
+  - Optional dialog screenshots (off by default, dialog only, open project only): Project
+    Properties pages, Layer Properties pages of chosen or all layers, and the Layout Designer with
+    each item's properties panel. Each dialog closes with Cancel, so nothing changes. Pages showing
+    data sources or logins are skipped; fields showing a path, address or login are blacked out.
+    A report appendix shows them with the QGIS version, style, theme, system and locale.
+  - Option `embed_resources` (default on) to leave SVG and image files out of the JSON.
+
 - 2026-11-11: P5 project rebuilder.
   - JSON `rebuild` part: the saved project XML (redacted) with every layer data source replaced
     by a marker and listed in a `sources` table (provider, kind, layers, and for files the path,

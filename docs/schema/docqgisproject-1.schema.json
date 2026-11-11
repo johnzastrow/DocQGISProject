@@ -10,6 +10,7 @@
     "options",
     "semantic",
     "rebuild",
+    "screenshots",
     "problems",
     "redactions",
     "coverage",
@@ -77,6 +78,23 @@
           "type": "integer",
           "minimum": 48,
           "maximum": 600
+        },
+        "embed_resources": {
+          "type": "boolean"
+        },
+        "screenshots": {
+          "enum": [
+            "none",
+            "project",
+            "layers",
+            "all"
+          ]
+        },
+        "screenshot_layers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -231,6 +249,63 @@
           "path",
           "count"
         ]
+      }
+    },
+    "screenshots": {
+      "type": "object",
+      "description": "Dialog screenshots taken by the plugin dialog (GUI runs only); empty otherwise.",
+      "properties": {
+        "environment": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "target",
+              "page"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "project",
+                  "layer",
+                  "layout"
+                ]
+              },
+              "target": {
+                "type": "string"
+              },
+              "target_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "page": {
+                "type": "string"
+              },
+              "image": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "skipped": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "masked": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
       }
     }
   },

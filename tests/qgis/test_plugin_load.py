@@ -48,8 +48,16 @@ def test_load_menu_provider_unload(qgis_app, plugin_pkg):
     assert actions[0].toolTip()
     assert not actions[0].icon().isNull()
 
-    actions[0].trigger()
-    assert iface.messageBar().messages, "menu action should report its placeholder status"
+    from DocQGISProject.gui import dialog as dialog_mod
+
+    opened = []
+    original = dialog_mod.DocumentDialog.exec
+    dialog_mod.DocumentDialog.exec = lambda self: opened.append(self.windowTitle()) or 0
+    try:
+        actions[0].trigger()
+    finally:
+        dialog_mod.DocumentDialog.exec = original
+    assert opened == ["Document Project"], "the menu action opens the dialog"
 
     plugin.unload()
     assert registry.providerById("docqgisproject") is None

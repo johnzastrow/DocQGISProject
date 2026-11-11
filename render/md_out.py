@@ -640,6 +640,43 @@ def _rebuild(doc, model):
         )
 
 
+_SHOT_KIND = {"project": "Project Properties", "layer": "Layer Properties", "layout": "Layout"}
+
+
+def _screenshots(doc, model):
+    doc.heading(2, f"{num('screenshots')}. Appendix: QGIS dialog screenshots")
+    shots = model.screenshots or {}
+    items = shots.get("items") or []
+    if not items:
+        doc.para(
+            "No dialog screenshots. They are optional, and only the plugin dialog in the QGIS window can take them. "
+            "The tables in the chapters above hold the same settings."
+        )
+        return
+    doc.para(
+        "Pictures of the QGIS dialogs as they were set, taken by opening each dialog and closing it with Cancel. "
+        "Pages that show data sources, paths or logins are skipped, and fields that show a path or address are "
+        "blacked out. Your screens may look different with another theme, language or scale."
+    )
+    env = shots.get("environment") or {}
+    doc.table(["Taken with", "Value"], [[md_text(k), md_text(str(v))] for k, v in env.items()])
+    current = None
+    for item in items:
+        key = (item["kind"], item["target"])
+        if key != current:
+            current = key
+            title = _SHOT_KIND.get(item["kind"], item["kind"])
+            if item["kind"] != "project":
+                title += f": {item['target']}"
+            doc.heading(3, md_text(title))
+        where = f"{_SHOT_KIND.get(item['kind'], item['kind'])} > {item['page']}"
+        if item.get("image"):
+            doc.para(f"**{md_text(item['page'])}** ({md_text(where)})")
+            doc.para(f"![{md_text(where)}]({item['image']})")
+        else:
+            doc.para(f"**{md_text(item['page'])}**: skipped, {md_text(item.get('skipped') or 'not available')}.")
+
+
 CHAPTERS = [
     ("overview", "Overview", _overview),
     ("recreate", "How to recreate this project", _recreate),
@@ -655,6 +692,7 @@ CHAPTERS = [
     ("problems", "Warnings and problems", _problems),
     ("coverage", "Appendix: coverage of the project file", _coverage),
     ("rebuild", "Appendix: rebuilding from the JSON", _rebuild),
+    ("screenshots", "Appendix: QGIS dialog screenshots", _screenshots),
 ]
 
 

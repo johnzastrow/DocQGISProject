@@ -40,7 +40,7 @@ SEMANTIC_KEYS = (
 
 
 def model_to_json_dict(model):
-    """{schema, generator, options, semantic, rebuild, problems, redactions, coverage, tier_b}."""
+    """{schema, generator, options, semantic, rebuild, screenshots, problems, redactions, coverage, tier_b}."""
     data = _clean(model)
     return {
         "schema": data["schema"],
@@ -48,6 +48,7 @@ def model_to_json_dict(model):
         "options": data["options"],
         "semantic": {k: data[k] for k in SEMANTIC_KEYS},
         "rebuild": data["rebuild"],
+        "screenshots": data["screenshots"],
         "problems": data["problems"],
         "redactions": data["redactions"],
         "coverage": data["coverage"],

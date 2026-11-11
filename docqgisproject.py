@@ -3,7 +3,7 @@
 
 import os
 
-from qgis.core import Qgis, QgsApplication
+from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
@@ -56,10 +56,10 @@ class DocQGISProjectPlugin:
             self.provider = None
 
     def run(self):
-        # Placeholder until the dialog lands (phase P6 of docs/DESIGN.md).
-        self.iface.messageBar().pushMessage(
-            "DocQGISProject",
-            tr("Development build: the documentation engine is not implemented yet."),
-            level=Qgis.MessageLevel.Info,
-            duration=5,
-        )
+        from .gui.dialog import DocumentDialog
+
+        dialog = DocumentDialog(self.iface)
+        try:
+            dialog.exec()  # modal: see gui/dialog.py for why
+        finally:
+            dialog.deleteLater()

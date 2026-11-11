@@ -225,8 +225,10 @@ def collect_rebuild(project, model, options):
         redact_dom(doc)  # the same secrets as elsewhere; not counted twice
     project_dir = os.path.dirname(os.path.abspath(path))
     sources = _parameterise_sources(doc, project_dir, options.redact)
-    resources = _embed_resources(doc, project_dir, model)
+    resources = _embed_resources(doc, project_dir, model) if options.embed_resources else []
     notes = []
+    if not options.embed_resources:
+        notes.append("SVG and image files were not embedded (embed_resources off); a rebuild needs them supplied.")
     if any(s["redacted"] for s in sources):
         notes.append("Some sources had credentials removed; supply them at rebuild time (QGIS authentication).")
     model.rebuild = {

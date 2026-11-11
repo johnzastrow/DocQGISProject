@@ -71,8 +71,13 @@ def open_project(path):
     return project
 
 
-def collect(project, options, feedback=None, sink=None):
-    """Run every collector on an open project and return the DocModel."""
+def collect(project, options, feedback=None, sink=None, screenshotter=None):
+    """Run every collector on an open project and return the DocModel.
+
+    `screenshotter(project, model, options, sink, feedback)` takes the dialog screenshots. Only
+    the plugin dialog passes one (gui/screenshots.py): core/ stays free of QGIS GUI code, and
+    Processing, console and headless runs have no QGIS window to grab.
+    """
     sink = sink if sink is not None else ArtifactSink(images=options.images)
     model = DocModel()
     model.generator = {
@@ -106,6 +111,15 @@ def collect(project, options, feedback=None, sink=None):
         image = step("overview", project_overview, project, options.image_dpi)
         model.project.overview_image = sink.add_png("images/project_overview.png", image) if image else None
     step("resources", collect_resources, model, os.path.dirname(project.fileName()) if project.fileName() else None)
+    if options.screenshots != "none":
+        if screenshotter is None:
+            model.add_problem(
+                "info",
+                "screenshots",
+                "Dialog screenshots are taken only from the plugin dialog in the QGIS window; this run has none.",
+            )
+        elif step("screenshots", screenshotter, project, model, options, sink, feedback) is False:
+            raise Cancelled()
     step("coverage", collect_tier_b, project, model, options)
     if "json" in options.formats:
         step("rebuild", collect_rebuild, project, model, options)
@@ -118,7 +132,7 @@ def collect(project, options, feedback=None, sink=None):
     return model
 
 
-def document_project(project_or_path, output_folder, options=None, feedback=None):
+def document_project(project_or_path, output_folder, options=None, feedback=None, screenshotter=None):
     """Document a project into output_folder. Returns a RunResult; raises Cancelled on cancel."""
     options = (options or DocOptions()).validate()
     out = OutputFolder(output_folder, overwrite=options.overwrite)
@@ -127,7 +141,7 @@ def document_project(project_or_path, output_folder, options=None, feedback=None
 
     project = project_or_path if isinstance(project_or_path, QgsProject) else open_project(project_or_path)
     sink = ArtifactSink(images=options.images)
-    model = collect(project, options, feedback, sink)
+    model = collect(project, options, feedback, sink, screenshotter)
     if feedback is not None and feedback.isCanceled():
         raise Cancelled()
     # Every artifact name is checked before anything is written, so a conflict never leaves

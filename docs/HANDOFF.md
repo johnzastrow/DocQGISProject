@@ -1,12 +1,12 @@
-# Handoff: DocQGISProject (development, P5 done), 2026-11-11
+# Handoff: DocQGISProject (development, P6 done), 2026-11-11
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P1 to P4 pushed; P5 committed locally, not pushed)
+## State (updated 2026-11-11, P1 to P5 pushed; P6 committed locally, not pushed)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
-  decisions below and for Q1, Q2, Q4 to Q7, Q10 (section 12 of the design). The owner re-confirmed the rebuilder design before P5 ("proceed as designed"). Re-confirm before P6 (screenshots).
+  decisions below and for Q1, Q2, Q4 to Q7, Q10 (section 12 of the design). The owner re-confirmed the rebuilder design before P5 ("proceed as designed"). Screenshot defaults re-confirmed before P6 ("keep defaults", layout designer panels included, best effort).
   1. Ship the rebuilder (`rebuildproject`) in 0.1.
   2. Dialog screenshots off by default; when on, project dialogs plus user-selected layers, all tabs except source and authentication pages.
   3. JSON never holds credentials.
@@ -120,9 +120,29 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
 - P5 verification: `make check` green (155 unit tests incl. 37 hostile-JSON cases), `make qgis-test` 63
   passed (round trip XML on basic/styling/layout, layout page pixels, sources without credentials, never
   overwrite, unmapped absolute path, code stripping, hostile JSON leaves no output).
-- Next: P6 (Processing algorithms `documentproject` and `rebuildproject` with SOURCE_MAP and AUTH_MAP as
-  `old=new;...` strings via `uri_text.parse_map_arg`, the dialog, progress and cancel, dialog screenshots).
-  Still open: GUI click test; the Wildlands print project as the manual hard case for the round trip.
+- P6 delivered:
+  - Options `embed_resources`, `screenshots` (none, project, layers, all) and `screenshot_layers`; screenshots
+    require `images`. `document_project(..., screenshotter=None)`: only the dialog passes one (core stays
+    UI-free); without it a requested screenshot run is an info note. JSON gains top-level `screenshots`.
+  - `processing_provider/algorithms.py`: `documentproject` and `rebuildproject`, both NoThreading (they read
+    the live project). SOURCE_MAP and AUTH_MAP are `old=new;...` strings. Errors become QgsProcessingException
+    with `safe_message` (credentials redacted). Empty INPUT means `context.project()`.
+  - `gui/dialog.py`: modal dialog (the rest of QGIS takes no input during a run, so no layer can be removed
+    mid-run); runs on the main thread; progress callback calls processEvents so Cancel works; Esc or the
+    close button during a run cancels instead. All options in QgsSettings under `DocQGISProject/`. Every
+    control has a tooltip (tested). Screenshots only for the open project with images on.
+  - `gui/screenshots.py`: `grab_modal` arms a timer before the blocking `iface.showProjectPropertiesDialog` /
+    `showLayerProperties` call, steps `mOptionsListWidget` pages, grabs, and always `reject()`s in `finally`.
+    Skips pages whose title contains source, information, server, auth, connection, credential, password.
+    Masks any visible text widget whose text looks like a path, URL or login (regex; over-masks dates with
+    slashes, accepted). Layout designer: window grab, then the `ItemDock` per item (30 max) via
+    `selectItems`; failures become notes.
+  - Tests use stand-in dialogs with the same object names; the real dialogs are NOT exercised headless.
+    Test windows must be deleted before `exitQgis` (an autouse fixture in test_gui.py), or the process exits 139.
+- P6 verification: 163 unit tests, 79 QGIS tests, gates green, build OK.
+- Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
+  smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
+  version 0.1.0, tag, plugins.qgis.org upload).
 
 ## Owner requirements (verbatim intent)
 

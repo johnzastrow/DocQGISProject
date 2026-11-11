@@ -194,6 +194,8 @@ class DocModel:
     resources: dict = field(default_factory=dict)  # fonts and external files (collectors/fonts_files.py)
     coverage: dict = field(default_factory=dict)  # share of project XML explained (collectors/tier_b.py)
     tier_b: list = field(default_factory=list)  # unexplained XML paths, detail == "full" only
+    # Dialog screenshots (gui/screenshots.py), GUI runs only: {"environment": {...}, "items": [...]}
+    screenshots: dict = field(default_factory=dict)
     rebuild: Optional[dict] = None  # lossless payload (collectors/rebuild_payload.py), JSON output only
     problems: list = field(default_factory=list)
     redactions: dict = field(default_factory=dict)  # kind -> total count

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Processing provider. Algorithms are added in phase P6 (see docs/DESIGN.md section 7)."""
+"""Processing provider "Documentation" (docs/DESIGN.md section 7)."""
 
 import os
 
@@ -28,5 +28,7 @@ class DocQGISProjectProvider(QgsProcessingProvider):
         return ICON_PATH
 
     def loadAlgorithms(self):  # noqa: N802 - QGIS API name
-        # Empty in P0. P6 adds DocumentProjectAlgorithm and RebuildProjectAlgorithm.
-        pass
+        from .algorithms import DocumentProjectAlgorithm, RebuildProjectAlgorithm
+
+        self.addAlgorithm(DocumentProjectAlgorithm())
+        self.addAlgorithm(RebuildProjectAlgorithm())
