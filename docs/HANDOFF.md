@@ -1,8 +1,8 @@
-# Handoff: DocQGISProject (development, P2 done), 2026-11-11
+# Handoff: DocQGISProject (development, P3 done), 2026-11-11
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P1 and P2 committed locally, NOT pushed: owner said do not push)
+## State (updated 2026-11-11, P1 and P2 pushed; P3 committed locally, not pushed)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
@@ -57,7 +57,24 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
   from the installed zip on the styling fixture (18 layers, 0 problems).
 - Not covered yet: diagrams, 3D renderers, mesh/point-cloud/vector-tile styling (no fixtures), layer-level
   feature blending, per-layer map thumbnails (planned with layout renders in P3).
-- Next: P3 (layouts: every item, page and item images, QPT; atlas and report). Still open: GUI click test.
+- P3 delivered: `core/collectors/layouts.py`, `core/collectors/maps.py` (layer thumbnails, overview),
+  `render/layout_md.py`; chapter numbers derive from `CHAPTERS` in `render/md_out.py` (use `num(key)`).
+  - QGIS 4.2.3 CRASH: `QgsLayoutItemChart::prepareGatherer` segfaults painting a chart without a loaded
+    source layer. Guarded by `render_hazard()` (skips the page and overlapping close-ups, warns). Worth
+    reporting upstream; keep the zoo chart without a layer so the guard stays tested.
+  - QGIS API notes: `setExtent` on a zero-size map leaves a zero-height extent, on a sized map it resizes
+    the item; use `zoomToExtent`. Legend `autoUpdateModel()` deprecated in 4.0, use `syncMode()`
+    (AllProjectLayers, VisibleLayers, Manual). `QgsLayout.writeLayoutXml()` gives the `<Layout>` element a
+    .qpt holds; `loadFromTemplate(doc, ctx)` returns (items, ok). 18 registered item types, 3D map is not
+    in core.
+  - Test zip: `dist/DocQGISProject-0.1.0-dev-P3.zip` (73 KB).
+- P3 verification: `make check` green (79 unit tests), `make qgis-test` 31 passed, engine runs from the
+  installed zip on the layout fixture (1 expected warning: the zoo chart).
+- Not covered yet: report section body layouts are not rendered or itemised; elevation profile, chart and
+  HTML items have generic (XML) properties only; fonts used in layouts are not checked against installed
+  fonts (Resources, P4 quality); 3D map items (not in core).
+- Next: P4 (HTML and PDF renderers, readability lint as a gate, Tier B generic XML appendix, coverage
+  report, HTML-specific hostile-project checks). Still open: GUI click test.
 
 ## Owner requirements (verbatim intent)
 

@@ -6,12 +6,14 @@ A QGIS 4 plugin that documents a QGIS project for two audiences from one run:
   rendered layout pages, symbols and legends.
 - **Machines:** a schema-versioned JSON file complete enough to rebuild the project programmatically.
 
-**Status: development (phase P2).** The documentation engine writes `project.json` and `report.md`
+**Status: development (phase P3).** The documentation engine writes `project.json` and `report.md`
 covering project settings, the layer tree, layers and their sources (credentials redacted), fields,
-joins, relations, variables, map themes, bookmarks, and full styling: renderers, every symbol layer,
-labels and raster rendering, with legend images (`images/`) and one QML style file per layer
-(`styles/`). Layouts (P3), HTML and PDF (P4), the rebuilder (P5) and the dialog and Processing
-algorithm (P6) are still to come.
+joins, relations, variables, map themes, bookmarks, full styling (renderers, every symbol layer,
+labels, raster rendering) and print layouts (every item with position and size, tables, atlas,
+reports). Images: legend swatches, layer thumbnails and an overview map (`images/`), layout pages and
+item close-ups (`layouts/`). Files to rebuild with: one QML style per layer (`styles/`) and one
+template per layout (`layouts/*.qpt`). HTML and PDF (P4), the rebuilder (P5) and the dialog and
+Processing algorithm (P6) are still to come.
 See [`docs/DESIGN.md`](docs/DESIGN.md) for the design and delivery plan.
 
 Until the dialog lands, run it from the QGIS Python Console:

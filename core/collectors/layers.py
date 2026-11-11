@@ -249,6 +249,14 @@ def collect_layer(layer, project, model, options, feedback=None, sink=None, inde
         from .styling import collect_style
 
         doc.style = collect_style(layer, model, options, sink, layer_stem(index, layer))
+        if options.images and doc.data_loaded:
+            from .maps import layer_thumbnail
+
+            try:
+                image = layer_thumbnail(layer, project, options.image_dpi)
+                doc.thumbnail = sink.add_png(f"images/{layer_stem(index, layer)}/thumbnail.png", image)
+            except Exception as exc:  # principle 7
+                model.add_problem("warning", "images", f"'{doc.name}' thumbnail failed: {safe_message(exc)}", doc.id)
     return doc
 
 

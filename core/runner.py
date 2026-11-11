@@ -22,6 +22,8 @@ from ..render.md_out import render_markdown
 from .artifacts import ArtifactSink
 from .collectors.common import safe_message
 from .collectors.layers import collect_layers, collect_tree
+from .collectors.layouts import collect_layouts
+from .collectors.maps import project_overview
 from .collectors.project import collect_bookmarks, collect_project, collect_relations, collect_themes, collect_variables
 from .model import DocModel
 from .options import DocOptions
@@ -93,6 +95,11 @@ def collect(project, options, feedback=None, sink=None):
     step("relations", collect_relations, project, model)
     step("map themes", collect_themes, project, model)
     step("bookmarks", collect_bookmarks, project, model)
+    if step("layouts", collect_layouts, project, model, options, sink, feedback) is False:
+        raise Cancelled()
+    if options.images:
+        image = step("overview", project_overview, project, options.image_dpi)
+        model.project.overview_image = sink.add_png("images/project_overview.png", image) if image else None
     if not options.redact:
         model.add_problem("warning", "security", "Redaction was turned off: this output may contain credentials.")
     if sink.dropped:

@@ -98,6 +98,7 @@ class LayerDoc:
     notes: Optional[str] = None  # plain text
     raster: Optional[dict] = None  # band_count, width, height, data_type, pixel_size
     style: Optional[dict] = None  # renderer, labeling, legend, qml, named_styles (collectors/styling.py)
+    thumbnail: Optional[str] = None  # image of the layer alone (collectors/maps.py)
 
 
 @dataclass
@@ -174,6 +175,7 @@ class ProjectDoc:
     has_macros: bool = False
     macro_lines: int = 0
     transform_operations: list = field(default_factory=list)  # [{"source", "destination", "operation"}]
+    overview_image: Optional[str] = None  # visible layers at the full extent
 
 
 @dataclass
@@ -188,6 +190,7 @@ class DocModel:
     themes: list = field(default_factory=list)
     bookmarks: list = field(default_factory=list)
     variables: list = field(default_factory=list)
+    layouts: list = field(default_factory=list)  # print layouts and reports (collectors/layouts.py)
     problems: list = field(default_factory=list)
     redactions: dict = field(default_factory=dict)  # kind -> total count
 

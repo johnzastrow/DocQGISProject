@@ -8,6 +8,32 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-11: P3 print layouts and reports. Every layout item is documented with type, page,
+  position, size, reference point, rotation, frame, background, opacity, blending, visibility,
+  data-defined overrides and every attribute QGIS stores for it; type-specific settings for maps
+  (extent, scale, CRS, rotation, locked layers or followed theme, atlas control, grids, overviews),
+  labels, legends, scale bars, pictures (source file and whether it exists), shapes, polygons and
+  polylines (nodes), markers, groups and charts. Tables and frames (attribute, fixed, text, HTML),
+  pages, layout variables (redacted), atlas settings with feature count, and report sections.
+- Images: each layout page, close-ups of maps, legends and scale bars at twice the image DPI, the
+  first atlas page, a thumbnail per layer and a project overview map. Each image is capped at 16
+  megapixels.
+- Each print layout is saved as a template (`layouts/<n>_<name>.qpt`) that loads back with Layout
+  Manager > New from Template; reports are saved as their XML definition. The rebuild steps now
+  include creating each layout from its template.
+- A "Print layouts" chapter; chapter numbers now come from one ordered list.
+- Quality checks: maps with an empty extent, pictures pointing to missing files.
+- Crash guard: QGIS 4.2.3 segfaults when it draws a chart item without a loaded source layer
+  (`QgsLayoutItemChart::prepareGatherer`). Pages and close-ups containing such a chart are not
+  rendered, and the report says why.
+- Fixtures: an "Item zoo" layout with one item of every registered layout item type, an inset map
+  following a theme, a layout variable.
+
+### Fixed
+
+- Fixture layouts set map extents before sizing the map items, so every map drew nothing; maps
+  are now sized first and use `zoomToExtent`.
+
 - 2026-11-11: P2 styling. Every layer's renderer is documented: single symbol, categorized,
   graduated (classification method, ramp), rule-based (nested rules, filters, scales), inverted
   polygon, 2.5D, point cluster and displacement (with embedded renderer), heatmap, null; raster

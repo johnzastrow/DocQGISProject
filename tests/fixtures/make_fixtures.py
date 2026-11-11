@@ -17,7 +17,9 @@ Writes one GeoPackage of data plus these projects (paths stored relative):
                  layers (pseudocolor, hillshade, gray, paletted) on dem.tif / landcover.tif
     layout.qgz   a print layout with each common item type (map with grid and overview,
                  legend, scale bar, label, picture, shape, polygon and polyline nodes,
-                 marker, attribute table, manual table), an atlas layout and a report
+                 marker, attribute table, manual table), an inset map following a theme,
+                 a layout variable, an "Item zoo" layout with one item of every registered
+                 layout item type, an atlas layout and a report
     sources.qgz  credential-bearing sources for redaction tests (fake values; the PostGIS
                  host is a closed port on localhost), a hostile layer name, a secret variable
 
@@ -510,6 +512,46 @@ def add_rasters(project, out):
         project.addMapLayer(lyr)
 
 
+def add_item_zoo(project, extent):
+    """A layout holding one item of EVERY registered layout item type (and multiframe type)."""
+    reg = QgsApplication.layoutItemRegistry()
+    zoo = QgsPrintLayout(project)
+    zoo.initializeDefaults()
+    zoo.setName("Item zoo")
+    mm = Qgis.LayoutUnit.Millimeters
+    x, y = 10, 10
+    skip = {"Page", "Frame", "Group"}  # pages exist already; frames come with multiframes; group below
+    for type_id, name in sorted(reg.itemTypes().items()):
+        if name in skip:
+            continue
+        item = reg.createItem(type_id, zoo)
+        if item is not None:
+            zoo.addLayoutItem(item)
+        else:
+            mf = reg.createMultiFrame(type_id, zoo)
+            if mf is None:
+                continue
+            zoo.addMultiFrame(mf)
+            item = QgsLayoutFrame(zoo, mf)
+            mf.addFrame(item)
+        item.attemptMove(QgsLayoutPoint(x, y, mm))
+        item.attemptResize(QgsLayoutSize(40, 25, mm))
+        if isinstance(item, QgsLayoutItemMap):
+            item.zoomToExtent(extent)
+        item.setId(f"zoo {name}")
+        x += 45
+        if x > 240:
+            x, y = 10, y + 35
+    a, b = QgsLayoutItemShape(zoo), QgsLayoutItemShape(zoo)
+    for n, shape in enumerate((a, b)):
+        zoo.addLayoutItem(shape)
+        shape.attemptMove(QgsLayoutPoint(10 + 15 * n, 180, mm))
+        shape.attemptResize(QgsLayoutSize(10, 10, mm))
+    group = zoo.groupItems([a, b])
+    group.setId("zoo Group")
+    project.layoutManager().addLayout(zoo)
+
+
 def make_layout(out, gpkg, svg):
     project = new_project("Fixture: layout")
     zones, sites, trails = load(gpkg, "zones"), load(gpkg, "sites"), load(gpkg, "trails")
@@ -518,6 +560,14 @@ def make_layout(out, gpkg, svg):
     for lyr in (zones, trails, sites):
         project.addMapLayer(lyr)
     extent = zones.extent().buffered(200)
+
+    # A map theme the inset map follows (zones only).
+    root = project.layerTreeRoot()
+    for lyr in (trails, sites):
+        root.findLayer(lyr.id()).setItemVisibilityChecked(False)
+    project.mapThemeCollection().insert("Zones only", QgsMapThemeCollection.createThemeFromCurrentState(root, _model(project)))
+    for lyr in (trails, sites):
+        root.findLayer(lyr.id()).setItemVisibilityChecked(True)
 
     layout = QgsPrintLayout(project)
     layout.initializeDefaults()  # one A4 landscape page
@@ -533,10 +583,12 @@ def make_layout(out, gpkg, svg):
             item.setId(item_id)
         return item
 
+    # Size a map item first, then zoomToExtent (keeps the item size). setExtent on a zero-size
+    # item leaves a zero-height extent, and setExtent on a sized item resizes the item.
     main_map = QgsLayoutItemMap(layout)
-    main_map.setExtent(extent)
     main_map.setFrameEnabled(True)
     place(main_map, 10, 20, 180, 150, "main map")
+    main_map.zoomToExtent(extent)
     grid = QgsLayoutItemMapGrid("Grid 1", main_map)
     grid.setIntervalX(1000)
     grid.setIntervalY(1000)
@@ -544,9 +596,11 @@ def make_layout(out, gpkg, svg):
     main_map.grids().addGrid(grid)
 
     inset = QgsLayoutItemMap(layout)
-    inset.setExtent(extent.buffered(3000))
     inset.setFrameEnabled(True)
+    inset.setFollowVisibilityPreset(True)
+    inset.setFollowVisibilityPresetName("Zones only")
     place(inset, 200, 20, 80, 60, "inset map")
+    inset.zoomToExtent(extent.buffered(3000))
     ov = QgsLayoutItemMapOverview("Overview 1", inset)
     ov.setLinkedMap(main_map)
     inset.overviews().addOverview(ov)
@@ -555,6 +609,7 @@ def make_layout(out, gpkg, svg):
     legend.setTitle("Legend")
     legend.setLinkedMap(main_map)
     place(legend, 200, 85, None, None, "legend")
+    legend.adjustBoxSize()
 
     bar = QgsLayoutItemScaleBar(layout)
     bar.setStyle("Single Box")
@@ -607,17 +662,20 @@ def make_layout(out, gpkg, svg):
     mframe.attemptResize(QgsLayoutSize(60, 20, mm))
     manual.addFrame(mframe)
 
+    layout.setCustomProperty("variableNames", ["map_author"])
+    layout.setCustomProperty("variableValues", ["Fixture cartographer"])
     project.layoutManager().addLayout(layout)
+    add_item_zoo(project, extent)
 
     # Atlas layout over the zones.
     atlas_layout = QgsPrintLayout(project)
     atlas_layout.initializeDefaults()
     atlas_layout.setName("Atlas by zone")
     amap = QgsLayoutItemMap(atlas_layout)
-    amap.setExtent(extent)
     atlas_layout.addLayoutItem(amap)
     amap.attemptMove(QgsLayoutPoint(10, 10, mm))
     amap.attemptResize(QgsLayoutSize(200, 180, mm))
+    amap.zoomToExtent(extent)
     amap.setAtlasDriven(True)
     amap.setAtlasScalingMode(QgsLayoutItemMap.AtlasScalingMode.Auto)
     amap.setAtlasMargin(0.1)

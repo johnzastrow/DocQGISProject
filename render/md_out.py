@@ -8,6 +8,7 @@ Tables stay at 6 columns or fewer and headings at level 4 or above.
 """
 
 from .strings import WHERE, add_layer_hint
+from .layout_md import TEMPLATE_STEPS, layouts_chapter
 from .style_md import style_chapter
 from .text import (
     fmt_bool,
@@ -89,7 +90,7 @@ def _overview(doc, model):
     n_ras = sum(1 for lyr in model.layers if lyr.layer_type == "Raster")
     n_other = len(model.layers) - n_vec - n_ras
     groups = _count_groups(model.layer_tree)
-    doc.heading(2, "1. Overview")
+    doc.heading(2, f"{num('overview')}. Overview")
     summary = (
         f"This project has {len(model.layers)} layers ({n_vec} vector, {n_ras} raster"
         + (f", {n_other} other" if n_other else "")
@@ -97,6 +98,8 @@ def _overview(doc, model):
         f"and {len(model.bookmarks)} bookmarks."
     )
     doc.para(summary)
+    if p.overview_image:
+        doc.para(f"![Overview map of the visible layers]({p.overview_image})")
     crs = p.crs
     doc.table(
         ["Item", "Value"],
@@ -127,7 +130,7 @@ def _recreate(doc, model):
     p = model.project
     names = _layer_names(model)
     by_id = {lyr.id: lyr for lyr in model.layers}
-    doc.heading(2, "2. How to recreate this project")
+    doc.heading(2, f"{num('recreate')}. How to recreate this project")
     doc.para(
         "Follow these steps in a new QGIS project. Each step names the QGIS menu to use; "
         "the detail chapters below list every setting."
@@ -141,18 +144,30 @@ def _recreate(doc, model):
     for item in _tree_steps(model.layer_tree, by_id, names):
         steps.append(item)
     if model.variables:
-        steps.append(f"Add the project variables in chapter 7: **{WHERE['variables']}**.")
+        steps.append(f"Add the project variables in chapter {num('variables')}: **{WHERE['variables']}**.")
     if model.relations:
-        steps.append(f"Create the relations in chapter 6: **{WHERE['relations']}**.")
+        steps.append(f"Create the relations in chapter {num('relations')}: **{WHERE['relations']}**.")
     if model.themes:
         steps.append(
-            f"Create each map theme in chapter 8: show only the listed layers, then **{WHERE['themes']} > Add Theme**."
+            f"Create each map theme in chapter {num('themes')}: show only the listed layers, then **{WHERE['themes']} > Add Theme**."
         )
     if model.bookmarks:
-        steps.append(f"Add the bookmarks in chapter 9: **{WHERE['bookmarks']}**.")
+        steps.append(f"Add the bookmarks in chapter {num('bookmarks')}: **{WHERE['bookmarks']}**.")
+    for lay in model.layouts or []:
+        if lay.get("template"):
+            kind = "report" if lay.get("kind") == "report" else "print layout"
+            if kind == "report":
+                steps.append(
+                    f"Create the report **{md_text(lay.get('name'))}**: **Project > Layout Manager**, choose "
+                    f"*Empty Report*, **Create**, then add its sections as listed in chapter {num('layouts')} "
+                    f"(full definition for reference: {md_code(lay['template'])})."
+                )
+            else:
+                steps.append(
+                    f"Create the print layout **{md_text(lay.get('name'))}** from {md_code(lay['template'])}: {TEMPLATE_STEPS}."
+                )
     steps.append("Save the project: **Project > Save As**.")
     doc.bullets([f"{n}. {s}" for n, s in enumerate(steps, 1)])
-    doc.para("*Not yet documented by this development build:* print layouts (phase P3).")
 
 
 def _tree_steps(node, by_id, names, path=()):
@@ -188,7 +203,7 @@ def _tree_steps(node, by_id, names, path=()):
 
 def _project_settings(doc, model):
     p = model.project
-    doc.heading(2, "3. Project settings")
+    doc.heading(2, f"{num('settings')}. Project settings")
     doc.para("General project properties. Colours are shown as hexadecimal RGB.")
     rows = [
         ("Title", md_text(p.title) or "Not set", "project_title"),
@@ -234,7 +249,7 @@ def _project_settings(doc, model):
 
 
 def _layer_tree(doc, model):
-    doc.heading(2, "4. Layer tree")
+    doc.heading(2, f"{num('tree')}. Layer tree")
     doc.para(
         "The Layers panel from top to bottom. [x] is checked (visible), [ ] is unchecked. "
         "A layer inside an unchecked group is not drawn."
@@ -295,14 +310,14 @@ def _fields_table(doc, lyr):
 
 
 def _layers(doc, model):
-    doc.heading(2, "5. Layers")
+    doc.heading(2, f"{num('layers')}. Layers")
     doc.para(
         f"Each layer in layer-tree order. Data-source credentials are "
         f"{'redacted' if model.options.get('redact', True) else 'NOT redacted'}."
     )
     names = _layer_names(model)
     for n, lyr in enumerate(model.layers, 1):
-        doc.heading(3, f"5.{n} {md_text(lyr.name)}")
+        doc.heading(3, f"{num('layers')}.{n} {md_text(lyr.name)}")
         src = lyr.source
         state = "loaded" if lyr.data_loaded else ("not contacted (remote)" if src.remote else "not loaded")
         rows = [
@@ -356,6 +371,8 @@ def _layers(doc, model):
             rows.append(("Notes", md_text(lyr.notes), "notes"))
         _settings(doc, rows)
 
+        if lyr.thumbnail:
+            doc.para(f"![{md_text(lyr.name)} on its own]({lyr.thumbnail})")
         style_chapter(doc, lyr)
 
         if isinstance(src.parts, dict) and len(src.parts) > 1:
@@ -396,7 +413,7 @@ def _layers(doc, model):
 
 
 def _relations(doc, model):
-    doc.heading(2, "6. Relations")
+    doc.heading(2, f"{num('relations')}. Relations")
     if not model.relations:
         doc.para("The project has no relations.")
         return
@@ -417,7 +434,7 @@ def _relations(doc, model):
 
 
 def _variables(doc, model):
-    doc.heading(2, "7. Project variables")
+    doc.heading(2, f"{num('variables')}. Project variables")
     if not model.variables:
         doc.para("The project defines no variables of its own.")
         return
@@ -428,7 +445,7 @@ def _variables(doc, model):
 
 
 def _themes(doc, model):
-    doc.heading(2, "8. Map themes")
+    doc.heading(2, f"{num('themes')}. Map themes")
     if not model.themes:
         doc.para("The project has no map themes.")
         return
@@ -449,7 +466,7 @@ def _themes(doc, model):
 
 
 def _bookmarks(doc, model):
-    doc.heading(2, "9. Spatial bookmarks")
+    doc.heading(2, f"{num('bookmarks')}. Spatial bookmarks")
     if not model.bookmarks:
         doc.para("The project has no spatial bookmarks.")
         return
@@ -461,7 +478,7 @@ def _bookmarks(doc, model):
 
 
 def _problems(doc, model):
-    doc.heading(2, "10. Warnings and problems")
+    doc.heading(2, f"{num('problems')}. Warnings and problems")
     if not model.problems:
         doc.para("No problems were found.")
         return
@@ -493,29 +510,28 @@ def render_markdown(model):
         total = sum(model.redactions.values())
         kinds = ", ".join(f"{md_text(k)} ({v})" for k, v in sorted(model.redactions.items()))
         doc.para(f"Credentials removed from this report: {total} ({kinds}).")
-    doc.bullets([
-        "- 1. Overview",
-        "- 2. How to recreate this project",
-        "- 3. Project settings",
-        "- 4. Layer tree",
-        "- 5. Layers",
-        "- 6. Relations",
-        "- 7. Project variables",
-        "- 8. Map themes",
-        "- 9. Spatial bookmarks",
-        "- 10. Warnings and problems",
-    ])
-    for chapter in (
-        _overview,
-        _recreate,
-        _project_settings,
-        _layer_tree,
-        _layers,
-        _relations,
-        _variables,
-        _themes,
-        _bookmarks,
-        _problems,
-    ):
+    doc.bullets([f"- {n}. {title}" for n, (_key, title, _fn) in enumerate(CHAPTERS, 1)])
+    for _key, _title, chapter in CHAPTERS:
         chapter(doc, model)
     return doc.text()
+
+
+# Chapter order. Numbers in headings, the contents list and cross-references all derive from it.
+CHAPTERS = [
+    ("overview", "Overview", _overview),
+    ("recreate", "How to recreate this project", _recreate),
+    ("settings", "Project settings", _project_settings),
+    ("tree", "Layer tree", _layer_tree),
+    ("layers", "Layers", _layers),
+    ("layouts", "Print layouts", layouts_chapter),
+    ("relations", "Relations", _relations),
+    ("variables", "Project variables", _variables),
+    ("themes", "Map themes", _themes),
+    ("bookmarks", "Spatial bookmarks", _bookmarks),
+    ("problems", "Warnings and problems", _problems),
+]
+
+
+def num(key):
+    """Chapter number for a chapter key."""
+    return next(n for n, (k, _t, _f) in enumerate(CHAPTERS, 1) if k == key)

@@ -3,6 +3,7 @@ sources (redacted), fields, relations, variables and themes; nothing secret leak
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -70,8 +71,8 @@ def test_basic_project(run):
     assert not [p for p in data["problems"] if p["severity"] == "error"]
     # markdown is readable and complete
     assert lint_markdown(md) == []
-    for heading in ("## 2. How to recreate this project", "## 6. Relations", "## 8. Map themes"):
-        assert heading in md
+    for heading in ("How to recreate this project", "Relations", "Map themes", "Print layouts"):
+        assert re.search(rf"^## \d+\. {heading}$", md, re.M), heading
     assert "Sites in zone" in md and "Zones only" in md
     assert set(os.listdir(out)) == {"project.json", "report.md", ".docqgisproject-manifest.json", "images", "styles"}
 
