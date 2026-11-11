@@ -1,11 +1,5 @@
 """The plugin loads, adds its Project-menu action and Processing provider, and unloads cleanly."""
 
-import importlib.util
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[2]
-
 
 class _MessageBar:
     def __init__(self):
@@ -35,21 +29,10 @@ class _StubIface:
         return self._bar
 
 
-def _import_plugin():
-    # Import the repo root as package "DocQGISProject" (the name it has once installed).
-    spec = importlib.util.spec_from_file_location(
-        "DocQGISProject", ROOT / "__init__.py", submodule_search_locations=[str(ROOT)]
-    )
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["DocQGISProject"] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def test_load_menu_provider_unload(qgis_app):
+def test_load_menu_provider_unload(qgis_app, plugin_pkg):
     from qgis.core import QgsApplication
 
-    pkg = _import_plugin()
+    pkg = plugin_pkg
     iface = _StubIface()
     plugin = pkg.classFactory(iface)
     plugin.initProcessing()  # as QGIS does for hasProcessingProvider=yes

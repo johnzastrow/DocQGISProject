@@ -16,6 +16,8 @@ Writes one GeoPackage of data plus these projects (paths stored relative):
     layout.qgz   a print layout with each common item type (map with grid and overview,
                  legend, scale bar, label, picture, shape, polygon and polyline nodes,
                  marker, attribute table, manual table), an atlas layout and a report
+    sources.qgz  credential-bearing sources for redaction tests (fake values; the PostGIS
+                 host is a closed port on localhost), a hostile layer name, a secret variable
 
 Output is deterministic (no randomness). Nothing is fetched from the network.
 """
@@ -512,6 +514,38 @@ def make_layout(out, gpkg, svg):
         raise RuntimeError("layout page render returned an empty image")
 
 
+# Fake credentials. Tests assert that none of these strings reach any output.
+FAKE_SECRETS = ("pg-PASSWORD-123", "pg_user_alice", "XYZ-APIKEY-456", "tile-user", "TILE-PASS-789", "VAR-TOKEN-000")
+HOSTILE_NAME = "<script>alert(1)</script> | *bold* [link](http://x) `code`"
+
+
+def make_sources(out, gpkg):
+    from qgis.core import QgsRasterLayer
+
+    project = new_project("Fixture: sources")
+    # PostGIS on a closed localhost port: invalid, fails fast, never leaves the machine.
+    pg = QgsVectorLayer(
+        "host=127.0.0.1 port=1 dbname='gis' user='pg_user_alice' password='pg-PASSWORD-123' "  # pragma: allowlist secret
+        "sslmode=disable key='id' srid=32619 type=Point table=\"public\".\"sites\" (geom)",
+        "postgis sites",
+        "postgres",
+    )
+    # XYZ tiles: the provider does not fetch anything when the layer is created.
+    xyz = QgsRasterLayer(
+        "type=xyz&url=https://tile-user:TILE-PASS-789@tiles.example.invalid/%7Bz%7D/%7Bx%7D/%7By%7D.png"  # pragma: allowlist secret
+        "?api_key%3DXYZ-APIKEY-456&zmax=19&zmin=0",
+        "tiles with key",
+        "wms",
+    )
+    hostile = load(gpkg, "zones", HOSTILE_NAME)
+    missing = QgsVectorLayer(str(out / "does_not_exist.gpkg") + "|layername=nothing", "missing file", "ogr")
+    for lyr in (hostile, xyz, pg, missing):
+        project.addMapLayer(lyr)
+    QgsExpressionContextUtils.setProjectVariable(project, "service_token", "VAR-TOKEN-000")
+    QgsExpressionContextUtils.setProjectVariable(project, "region", "Maine")
+    _write(project, out / "sources.qgz")
+
+
 def _write(project, path):
     if not project.write(str(path)):
         raise RuntimeError(f"cannot write {path}: {project.error()}")
@@ -538,6 +572,7 @@ def main(argv=None):
         make_basic(out, gpkg)
         make_styling(out, gpkg)
         make_layout(out, gpkg, svg)
+        make_sources(out, gpkg)
     finally:
         _model.keep.clear()
         app.exitQgis()

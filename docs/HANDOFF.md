@@ -1,8 +1,8 @@
-# Handoff: DocQGISProject (design stage), 2026-11-11
+# Handoff: DocQGISProject (development, P1 done), 2026-11-11
 
-Read this first after a restart. Then read `docs/DESIGN.md` (draft 2).
+Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P0 done and pushed)
+## State (updated 2026-11-11, P1 committed locally, not pushed)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
@@ -23,7 +23,28 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2).
   `secrets` target is renamed `leak-scan` because detect-secrets flags the template's `secrets:` target as a
   secret keyword (a bug in the skill template too); the secrets step now fails on findings (the template's
   `detect-secrets scan` always exits 0); `scripts/` is excluded from `ruff format` to stay byte-identical to the skill.
-- Next: P1 (model, project, layers, sources, redaction; JSON and Markdown). Hostile-project fixture is deferred to P4.
+- P1 delivered (engine usable from the Python console; no dialog or Processing algorithm yet):
+  - `core/model.py` (dataclasses), `core/options.py` (allowlist validation; html/pdf rejected until P4),
+    `core/redact.py`, `core/safe_paths.py`, `core/runner.py` (`document_project`, `Cancelled`),
+    `core/collectors/{common,project,layers}.py`, `render/{text,strings,json_out,md_out}.py`.
+  - JSON layout: `{schema, generator, options, semantic: {project, layer_tree, layers, relations, themes,
+    bookmarks, variables}, problems, redactions}`; `rebuild` is added in P5. No JSON Schema file yet (P5).
+  - Projects given as a path are read with `DontResolveLayers`; local layers are then resolved one by one
+    (`setDataSource`, keeps the stored style); remote (web services and databases) only with
+    `include_network_layers`.
+  - Privacy decision: the last-saved user name and full name in the project file are NOT output.
+    Project metadata `author` IS output (it is a deliberate project field). Absolute data paths appear in
+    the JSON and in the Markdown source-parameter table only when no project-relative path exists.
+  - Fixtures: added `sources.qgz` (fake credentials, closed localhost PostGIS port, XYZ with key and user
+    info, hostile layer name, secret-named variable, missing file). This covers the "hostile project"
+    case early; P4 still adds HTML-specific hostile checks.
+- P1 verification: `make check` green (68 unit tests, Bandit 0, detect-secrets no findings), `make qgis-test`
+  12 passed, `make build` 42 KB self-verify OK, engine runs from the installed zip.
+- Fake credentials in tests and in `core/redact.py` docstrings carry `# pragma: allowlist secret`.
+- Known limits to address later: unresolved invalid layers report no CRS; no per-layer timeout for feature
+  counts (P7); custom properties are not yet collected (Tier B, P4); joins and virtual fields are documented
+  but the fixtures have none yet (add in P2).
+- Next: P2 (styling collectors, QML export, symbol and legend images). Still open from P0: GUI click test.
 
 ## Owner requirements (verbatim intent)
 

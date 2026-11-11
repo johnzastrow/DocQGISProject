@@ -1,29 +1,5 @@
 """The fixture generator builds projects that reload with valid layers, layouts, themes and relations."""
 
-import importlib.util
-from pathlib import Path
-
-import pytest
-
-GEN = Path(__file__).resolve().parents[1] / "fixtures" / "make_fixtures.py"
-
-
-@pytest.fixture(scope="module")
-def fixtures_dir(qgis_app, tmp_path_factory):
-    spec = importlib.util.spec_from_file_location("make_fixtures", GEN)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    out = tmp_path_factory.mktemp("fixtures")
-    gpkg = out / "fixture_data.gpkg"
-    mod.write_data(gpkg)
-    (out / "assets").mkdir()
-    svg = out / "assets" / "north.svg"
-    svg.write_bytes(mod.REPO_ICON.read_bytes())
-    mod.make_basic(out, gpkg)
-    mod.make_styling(out, gpkg)
-    mod.make_layout(out, gpkg, svg)
-    return out
-
 
 def _read(path):
     from qgis.core import QgsProject
