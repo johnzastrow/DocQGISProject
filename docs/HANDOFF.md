@@ -1,8 +1,27 @@
-# Handoff: DocQGISProject (development, P6 done), 2026-11-11
+# Handoff: DocQGISProject (0.1.0 released), 2026-11-12
 
 Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted with defaults).
 
-## State (updated 2026-11-11, P1 to P5 pushed; P6 committed locally, not pushed)
+## Where things stand (2026-11-12)
+
+- **v0.1.0 is released** (experimental): tag `v0.1.0` on commit c264965, GitHub Release
+  https://github.com/johnzastrow/DocQGISProject/releases/tag/v0.1.0 with `DocQGISProject.zip` built by
+  `release.yml` (52 files, same file list as the local build, `version=0.1.0`, `experimental=True`).
+- The owner ran the GUI click test with the final zip and reported "GUI test works" before the tag.
+- **Not done, owner's call:** upload to plugins.qgis.org
+  (`plugins.qgis.org/plugins/DocQGISProject/version/add/` for later versions; a first upload is via
+  "Share a plugin"). Upload the release asset, not a local build. Never upload without the owner asking.
+- Versioning: semver plus Keep a Changelog, rules in `docs/RELEASING.md`. Every user-visible change adds a
+  line under `[Unreleased]` in `CHANGELOG.md` in the same commit; a release moves them under a new
+  version, sets `metadata.txt` `version=` and `changelog=`, and `make tag V=x.y.z` (re-runs the gates,
+  then pushes the tag; CI publishes the Release). `tests/unit/test_metadata.py` enforces agreement.
+- Open items for 0.1.x / 0.2.0: page matching for screenshots in non-English QGIS (match by page object
+  name or icon, not title); Windows and macOS test runs; the headless harness hang in
+  `iface.showLayerProperties` for vector layers (harness only, see P7 notes below); the "5. Layers"
+  chapter page holds only the intro sentence before 5.1 starts a new page (could drop the H3 break for
+  the first layer); a release of the qgis-plugin skill for its unreleased commits (ask first).
+
+## History (P0 to P7)
 
 - Repo: https://github.com/johnzastrow/DocQGISProject (public, GitHub account `johnzastrow`), local `~/Github/DocQGISProject`, branch `main`.
 - The owner said "proceed with 0" (P0). Taken as acceptance of the design's recommended defaults for the three
@@ -196,9 +215,8 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
   70 dpi, scaled to 1600 px). Made from synthetic fixtures only, never from the owner's projects.
   Regenerate: `make fixtures`, document `layout.qgz`, `pdftoppm -r 70`. Fixed on the way: counts in
   the report agree in number (`render.text.fmt_count`).
-- Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
-  smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
-  version 0.1.0, tag, plugins.qgis.org upload).
+- P7 finished 2026-11-12: owner GUI click test passed; tagged and released v0.1.0 (see the top of this
+  file). Remaining: plugins.qgis.org upload (owner's call).
 
 ## Owner requirements (verbatim intent)
 
