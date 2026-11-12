@@ -150,6 +150,7 @@ class FakeIface:
                 ("Source", _page(layer.source())),
                 ("Symbology", _page("Single symbol")),
                 ("Labels", _page("No labels")),
+                ("Temporal", _page("Dynamic temporal control off")),
             ],
             self.rejected,
         )
@@ -242,7 +243,11 @@ def test_screenshots_end_to_end(plugin_pkg, live_layout_project, tmp_path):
     iface = FakeIface()
     layer_ids = list(live_layout_project.mapLayers())
     options = DocOptions(
-        formats=("json", "markdown"), screenshots="layers", screenshot_layers=tuple(layer_ids[:2]), image_dpi=48
+        formats=("json", "markdown"),
+        screenshots="layers",
+        screenshot_layers=tuple(layer_ids[:2]),
+        image_dpi=48,
+        screenshot_pages="all",
     )
     result = document_project(live_layout_project, str(tmp_path), options, screenshotter=Screenshotter(iface))
     items = result.model.screenshots["items"]
@@ -255,7 +260,7 @@ def test_screenshots_end_to_end(plugin_pkg, live_layout_project, tmp_path):
     layer_pages = [i for i in items if i["kind"] == "layer"]
     assert len({i["target_id"] for i in layer_pages}) == 2
     assert all(i["skipped"] for i in layer_pages if i["page"] in ("Information", "Source"))
-    assert all(i["image"] for i in layer_pages if i["page"] in ("Symbology", "Labels"))
+    assert all(i["image"] for i in layer_pages if i["page"] in ("Symbology", "Labels", "Temporal"))
 
     layout_pages = [i for i in items if i["kind"] == "layout"]
     assert layout_pages and layout_pages[0]["page"] == "Layout Designer"
@@ -396,6 +401,7 @@ def test_settings_round_trip(plugin_pkg, clean_settings, tmp_path):
     a.redact.setChecked(False)
     a.embed.setChecked(False)
     a._select(a.shots, "all")
+    a.shots_changed.setChecked(False)
     a.reject()  # closing saves
     b = DocumentDialog(FakeIface())
     assert b.rb_file.isChecked() and b.project_file.filePath() == "/x/y.qgz"
@@ -403,7 +409,8 @@ def test_settings_round_trip(plugin_pkg, clean_settings, tmp_path):
     assert not b.fmt_boxes["pdf"].isChecked() and b.fmt_boxes["json"].isChecked()
     assert b.detail.currentData() == "full" and b.dpi.value() == 200
     assert not b.redact.isChecked() and not b.embed.isChecked()
-    assert b.shots.currentData() == "all"
+    assert b.shots.currentData() == "all" and not b.shots_changed.isChecked()
+    assert b.options().screenshot_pages == "all"
     o = b.options().validate()
     assert o.screenshots == "none"  # a project file: screenshots are not possible
     assert o.formats == ("json", "markdown", "html") and not o.redact
@@ -524,3 +531,33 @@ def test_modal_shown_without_exec_is_handled(qgis_app, plugin_pkg):
     assert result == "grabbed"
     assert holder["d"].result() == 0 and not holder["d"].isVisible()
     assert QApplication.activeModalWidget() is None
+
+
+def test_screenshots_only_changed_pages(plugin_pkg, live_layout_project, tmp_path):
+    """Default: only pages whose settings differ from QGIS defaults are pictured."""
+    from DocQGISProject.core.options import DocOptions
+    from DocQGISProject.core.runner import document_project
+    from DocQGISProject.gui.screenshots import DEFAULT_REASON, SKIP_REASON, Screenshotter
+
+    iface = FakeIface()
+    options = DocOptions(formats=("json",), screenshots="all", image_dpi=48)
+    assert options.screenshot_pages == "changed"
+    result = document_project(live_layout_project, str(tmp_path), options, screenshotter=Screenshotter(iface))
+    model = result.model
+    items = model.screenshots["items"]
+    by = {(i["kind"], i.get("target_id"), i["page"]): i for i in items}
+    for lyr in model.layers:
+        sym = by[("layer", lyr.id, "Symbology")]
+        assert sym["image"], lyr.name  # every layer has a renderer
+        labels = by[("layer", lyr.id, "Labels")]
+        assert bool(labels["image"]) == bool((lyr.style or {}).get("labeling")), lyr.name
+        if not labels["image"]:
+            assert labels["skipped"] == DEFAULT_REASON
+        temporal = by[("layer", lyr.id, "Temporal")]
+        assert bool(temporal["image"]) == ("Temporal" in (lyr.settings or {})), lyr.name
+        assert by[("layer", lyr.id, "Information")]["skipped"] == SKIP_REASON
+    assert by[("project", None, "General")]["image"]
+    variables = by[("project", None, "Variables")]
+    assert bool(variables["image"]) == bool(model.variables)
+    taken = sum(1 for i in items if i.get("image"))
+    assert taken < len(items)  # something was left out as default

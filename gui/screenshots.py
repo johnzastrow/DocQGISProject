@@ -43,6 +43,93 @@ from ..core.safe_paths import sanitize_name
 # Page titles never grabbed (lower case, matched as substrings): they show sources or logins.
 SKIP_PAGES = ("source", "information", "server", "auth", "connection", "credential", "password")
 SKIP_REASON = "the page shows data sources, addresses or logins"
+DEFAULT_REASON = "all settings on this page are at QGIS defaults"
+_DEFAULT_WIDGETS = ("", "TextEdit")
+
+
+# Settings groups (core/collectors/layer_settings.py) whose name differs from the dialog page title.
+SETTINGS_PAGE_TO_DIALOG = {
+    "Variables and custom properties": "Variables",
+    "Data Sources (Project Properties)": "",  # set in Project Properties, not in Layer Properties
+}
+
+
+def _layer_set_constraints(layer):
+    """True when a not-null or unique constraint was set on the layer (not reported by the data
+    provider, as a GeoPackage primary key is)."""
+    try:
+        from qgis.core import QgsFieldConstraints
+
+        layer_origin = QgsFieldConstraints.ConstraintOrigin.ConstraintOriginLayer
+        for field in layer.fields():
+            cons = field.constraints()
+            for c in (
+                QgsFieldConstraints.Constraint.ConstraintNotNull,
+                QgsFieldConstraints.Constraint.ConstraintUnique,
+            ):
+                if cons.constraints() & c and cons.constraintOrigin(c) == layer_origin:
+                    return True
+    except (AttributeError, RuntimeError):  # not a vector layer, or being torn down
+        return False
+    return False
+
+
+def layer_pages_with_changes(layer, doc):
+    """Lower-case Layer Properties page titles that hold settings differing from QGIS defaults,
+    judged from what the collectors found (doc is the layer's LayerDoc) and the live layer."""
+    pages = {"symbology"}  # every layer has a renderer
+    style = doc.style or {}
+    if style.get("labeling"):
+        pages.add("labels")
+    if any(
+        f.alias
+        or f.comment
+        or f.expression
+        or f.default_expression
+        or f.constraint_expression
+        or f.widget_type not in _DEFAULT_WIDGETS
+        for f in doc.fields or []
+    ) or _layer_set_constraints(layer):
+        pages.add("fields")
+    if doc.joins:
+        pages.add("joins")
+    if (doc.elevation or {}).get("rows"):
+        pages.add("elevation")
+    for page in doc.settings or {}:
+        title = SETTINGS_PAGE_TO_DIALOG.get(page, page)
+        if title:
+            pages.add(title.lower())
+    if doc.title or doc.abstract:
+        pages.add("metadata")
+    try:
+        if getattr(layer, "diagramsEnabled", None) and layer.diagramsEnabled():
+            pages.add("diagrams")
+        if getattr(layer, "renderer3D", None) and layer.renderer3D() is not None:
+            pages.add("3d view")
+    except RuntimeError:  # a layer being torn down: judge from the collected data only
+        pass
+    return pages
+
+
+def project_pages_with_changes(model):
+    """Lower-case Project Properties page titles that hold settings worth picturing."""
+    p = model.project
+    pages = {"general", "crs"}
+    if any((p.metadata or {}).get(k) for k in ("title", "abstract", "author", "keywords")):
+        pages.add("metadata")
+    if p.transform_operations:
+        pages.add("transformations")
+    if model.relations:
+        pages.add("relations")
+    if model.variables:
+        pages.add("variables")
+    if p.has_macros:
+        pages.add("macros")
+    if p.default_view_extent:
+        pages.add("view settings")
+    return pages
+
+
 # Text that is masked wherever it appears in a field.
 SENSITIVE_TEXT_RE = re.compile(
     r"(?i)(://|^[a-z]:[\\/]|^/|^\\\\|^\.{1,2}[\\/]|[\\/].+[\\/]|dbname=|host=|user(name)?=|password|authcfg|"
@@ -232,6 +319,7 @@ class Screenshotter:
             return None
         self.items = []
         self.sink, self.feedback, self.model = sink, feedback, model
+        self.only_changed = options.screenshot_pages == "changed"
         model.screenshots = {"environment": self._environment(), "items": self.items}
         if self._project_dialog() is False:
             return False
@@ -285,7 +373,8 @@ class Screenshotter:
             "masked": masked,
         })
 
-    def _grab_pages(self, dialog, kind, target, target_id, prefix):
+    def _grab_pages(self, dialog, kind, target, target_id, prefix, wanted=None):
+        """Grab each page of an options dialog. `wanted`: lower-case titles to picture (None: all)."""
         lst, stack = _options_pages(dialog)
         if lst is None or stack is None:
             image, masked = grab_masked(dialog)
@@ -302,6 +391,9 @@ class Screenshotter:
             if _skip_page(title):
                 self._add(kind, target, target_id, title, skipped=SKIP_REASON)
                 continue
+            if wanted is not None and title.lower() not in wanted:
+                self._add(kind, target, target_id, title, skipped=DEFAULT_REASON)
+                continue
             lst.setCurrentRow(row)
             _process_events(60)
             image, masked = grab_masked(dialog)
@@ -310,8 +402,10 @@ class Screenshotter:
         return None
 
     def _project_dialog(self):
+        wanted = project_pages_with_changes(self.model) if self.only_changed else None
+
         def handle(dialog):
-            return self._grab_pages(dialog, "project", "project", None, "project")
+            return self._grab_pages(dialog, "project", "project", None, "project", wanted)
 
         try:
             result = grab_modal(lambda: self.iface.showProjectPropertiesDialog(""), handle)
@@ -326,9 +420,11 @@ class Screenshotter:
 
     def _layer_dialog(self, layer, n):
         prefix = f"layer_{n:03d}_{sanitize_name(layer.name())[:40]}"
+        doc = self.model.layer(layer.id())
+        wanted = layer_pages_with_changes(layer, doc) if (self.only_changed and doc is not None) else None
 
         def handle(dialog):
-            return self._grab_pages(dialog, "layer", layer.name(), layer.id(), prefix)
+            return self._grab_pages(dialog, "layer", layer.name(), layer.id(), prefix, wanted)
 
         try:
             result = grab_modal(lambda: self.iface.showLayerProperties(layer, ""), handle)

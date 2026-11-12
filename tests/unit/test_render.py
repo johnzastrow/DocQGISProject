@@ -105,6 +105,7 @@ def test_json_is_strict_and_structured():
         {"image_dpi": True},
         {"images": 1},
         {"embed_resources": "no"},
+        {"screenshot_pages": "some"},
         {"screenshots": "desktop"},
         {"screenshots": "layers"},  # needs screenshot_layers
         {"screenshots": "layers", "screenshot_layers": ("",)},

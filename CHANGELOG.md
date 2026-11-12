@@ -20,6 +20,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-12: Screenshots of only the dialog pages that hold something (option
+  `screenshot_pages`, default `changed`; dialog: "Only pages with settings that differ from QGIS
+  defaults"). A page is pictured when the report found settings on it that differ from a new
+  layer or project (Symbology always; Labels when the layer is labelled; Fields with aliases,
+  constraints, defaults or widgets; Joins; Elevation; Rendering, Temporal, Display, Actions and
+  the other pages from the settings comparison; Metadata, Diagrams, 3D View when set). The rest
+  are listed as not pictured. `all` pictures every page as before.
 - 2026-11-12: Start button on the Project toolbar (next to New, Open and Save) and a
   *Plugins > DocQGISProject* menu entry, besides *Project > Document Project...*.
 - 2026-11-12: Dialog screenshots are placed where their settings are documented: Symbology,

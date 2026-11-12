@@ -101,6 +101,12 @@
             "relative",
             "absolute"
           ]
+        },
+        "screenshot_pages": {
+          "enum": [
+            "changed",
+            "all"
+          ]
         }
       }
     },

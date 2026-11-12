@@ -190,10 +190,19 @@ class DocumentDialog(QDialog):
         self.layer_list = QListWidget()
         self.layer_list.setToolTip(tr("Tick the layers whose properties dialog should be pictured."))
         self.layer_list.setMaximumHeight(110)
+        self.shots_changed = QCheckBox(tr("Only pages with settings that differ from QGIS defaults"))
+        self.shots_changed.setToolTip(
+            tr(
+                "Picture only the dialog pages where this project or layer has something set, such as "
+                "Symbology, Labels or a changed Rendering page. Pages left at QGIS defaults are listed in "
+                "the report as not pictured. Untick to picture every page."
+            )
+        )
         self.shots_note = QLabel("")
         self.shots_note.setWordWrap(True)
         self.shots_note.setToolTip(tr("Why screenshots are not available with the current choices."))
         shl.addWidget(self.shots)
+        shl.addWidget(self.shots_changed)
         shl.addWidget(self.shots_note)
         shl.addWidget(self.layer_list)
         main.addWidget(shots)
@@ -261,6 +270,7 @@ class DocumentDialog(QDialog):
         self.overwrite.setChecked(_bool(s.value(KEY + "overwrite"), d.overwrite))
         self._select(self.shots, s.value(KEY + "screenshots", d.screenshots))
         self._select(self.paths, s.value(KEY + "paths", d.paths))
+        self.shots_changed.setChecked(s.value(KEY + "screenshot_pages", d.screenshot_pages) == "changed")
         self._fill_layers()
 
     def _save_settings(self):
@@ -279,6 +289,7 @@ class DocumentDialog(QDialog):
         s.setValue(KEY + "overwrite", self.overwrite.isChecked())
         s.setValue(KEY + "screenshots", self.shots.currentData())
         s.setValue(KEY + "paths", self.paths.currentData())
+        s.setValue(KEY + "screenshot_pages", "changed" if self.shots_changed.isChecked() else "all")
 
     @staticmethod
     def _select(combo, value):
@@ -339,6 +350,7 @@ class DocumentDialog(QDialog):
         self.dpi.setEnabled(idle and self.images.isChecked())
         shots_possible = idle and open_project and self.images.isChecked()
         self.shots.setEnabled(shots_possible)
+        self.shots_changed.setEnabled(shots_possible and self.shots.currentData() != "none")
         self.layer_list.setEnabled(shots_possible and self.shots.currentData() == "layers")
         # Say why the screenshot choice is greyed out, instead of leaving a silent disabled box.
         if not open_project:
@@ -371,6 +383,7 @@ class DocumentDialog(QDialog):
             image_dpi=self.dpi.value(),
             embed_resources=self.embed.isChecked(),
             paths=self.paths.currentData(),
+            screenshot_pages="changed" if self.shots_changed.isChecked() else "all",
             load_data=self.load_data.isChecked(),
             redact=self.redact.isChecked(),
             include_network_layers=self.network.isChecked(),

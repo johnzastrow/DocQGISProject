@@ -14,6 +14,8 @@ DETAIL_LEVELS = ("summary", "standard", "full")
 # Dialog screenshots (design 6b): GUI only. "layers" and "all" differ in which layers:
 # the ones listed in screenshot_layers, or every layer.
 SCREENSHOT_SCOPES = ("none", "project", "layers", "all")
+# Which dialog pages to picture: only pages whose settings differ from QGIS defaults, or all.
+SCREENSHOT_PAGES = ("changed", "all")
 MAX_SCREENSHOT_LAYERS = 200
 
 
@@ -31,6 +33,7 @@ class DocOptions:
     embed_resources: bool = True  # SVG and images used by styles and layouts inside the JSON
     screenshots: str = "none"  # see SCREENSHOT_SCOPES; ignored outside the QGIS window
     screenshot_layers: tuple = ()  # layer ids for screenshots == "layers"
+    screenshot_pages: str = "changed"  # see SCREENSHOT_PAGES
 
     def validate(self):
         formats = tuple(self.formats)
@@ -55,6 +58,10 @@ class DocOptions:
             raise ValueError(f"screenshot_layers must be up to {MAX_SCREENSHOT_LAYERS} layer ids")
         if self.screenshots == "layers" and not layers:
             raise ValueError('screenshots="layers" needs at least one layer in screenshot_layers')
+        if self.screenshot_pages not in SCREENSHOT_PAGES:
+            raise ValueError(
+                f"unknown screenshot page choice {self.screenshot_pages!r}; allowed: {list(SCREENSHOT_PAGES)}"
+            )
         if self.screenshots != "none" and not self.images:
             raise ValueError("screenshots are images: they need images turned on")
         self.screenshot_layers = layers
