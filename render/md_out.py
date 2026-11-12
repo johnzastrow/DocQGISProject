@@ -19,6 +19,7 @@ from .layout_md import TEMPLATE_STEPS, layouts_chapter
 from .style_md import style_chapter
 from .text import (
     fmt_bool,
+    fmt_count,
     fmt_extent,
     fmt_number,
     fmt_redacted_or_text,
@@ -156,10 +157,10 @@ def _overview(doc, model):
     groups = _count_groups(model.layer_tree)
     doc.heading(2, f"{num('overview')}. Overview")
     summary = (
-        f"This project has {len(model.layers)} layers ({n_vec} vector, {n_ras} raster"
+        f"This project has {fmt_count(len(model.layers), 'layer')} ({n_vec} vector, {n_ras} raster"
         + (f", {n_other} other" if n_other else "")
-        + f") in {groups} groups, {len(model.relations)} relations, {len(model.themes)} map themes "
-        f"and {len(model.bookmarks)} bookmarks."
+        + f") in {fmt_count(groups, 'group')}, {fmt_count(len(model.relations), 'relation')}, "
+        f"{fmt_count(len(model.themes), 'map theme')} and {fmt_count(len(model.bookmarks), 'bookmark')}."
     )
     doc.para(summary)
     if p.overview_image:

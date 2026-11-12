@@ -6,6 +6,11 @@ A QGIS 4 plugin that documents a QGIS project for two audiences from one run:
   rendered layout pages, symbols and legends.
 - **Machines:** a schema-versioned JSON file complete enough to rebuild the project programmatically.
 
+![Four pages of a PDF report: the linked contents, the rebuild steps, a layer with its symbol settings and where to set them in QGIS, and a print layout](docs/images/report_pages.png)
+
+*PDF report for one of the synthetic test projects: contents with links, the rebuild steps, a
+layer, and a print layout.*
+
 **Status: 0.1.0, experimental.** See [`CHANGELOG.md`](CHANGELOG.md); versions follow semver ([`docs/RELEASING.md`](docs/RELEASING.md)).
 
 What one run writes:
@@ -28,6 +33,8 @@ folder, formats and options, then *Document*. Progress, *Cancel run* and *Open r
 dialog; every option has a tooltip and is remembered. Dialog screenshots (off by default) are only
 available here, only for the open project: each QGIS dialog opens briefly and closes with Cancel,
 pages that show data sources or logins are skipped, and fields with paths or addresses are blacked out.
+
+<img src="docs/images/dialog.png" alt="The Document Project dialog: project, output folder and formats, options, dialog screenshots" width="360">
 
 **Processing:** *Processing Toolbox > Documentation*: *Document project* and *Rebuild project from
 JSON*. Also usable from models, batch mode and `qgis_process`.

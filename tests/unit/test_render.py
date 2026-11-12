@@ -8,7 +8,7 @@ from core.model import CrsDoc, DocModel, FieldDoc, LayerDoc, Problem, ProjectDoc
 from core.options import DocOptions
 from render.json_out import render_json
 from render.md_out import render_markdown
-from render.text import md_code, md_text
+from render.text import fmt_count, md_code, md_text
 
 from ..readability import lint_markdown
 
@@ -219,3 +219,11 @@ def test_screenshot_appendix():
     # A screenshot no chapter claims still appears, in the appendix.
     assert md.index("](images/screenshots/layer_999_01.png)") > heading("Other screenshots") > appendix
     assert lint_markdown(md) == []
+
+
+def test_counts_agree_in_number():
+    assert fmt_count(1, "page") == "1 page"
+    assert fmt_count(0, "page") == "0 pages"
+    assert fmt_count(1200, "item") == "1,200 items"
+    assert fmt_count(1, "table or frame", "tables or frames") == "1 table or frame"
+    assert fmt_count(2, "table or frame", "tables or frames") == "2 tables or frames"

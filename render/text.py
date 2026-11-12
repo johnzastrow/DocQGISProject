@@ -64,6 +64,11 @@ def fmt_number(value, digits=6):
     return md_text(value)
 
 
+def fmt_count(n, singular, plural=None):
+    """'1 layer', '3 layers'; pass plural for irregular nouns."""
+    return f"{n:,} {singular if n == 1 else (plural or singular + 's')}"
+
+
 def fmt_extent(extent, digits=3):
     if not extent:
         return "Not set"

@@ -6,7 +6,7 @@ item close-ups and per-item settings, tables, atlas, template file.
 """
 
 from .style_md import fmt_value, humanize, symbol_details
-from .text import fmt_bool, fmt_extent, fmt_number, md_code, md_text
+from .text import fmt_bool, fmt_count, fmt_extent, fmt_number, md_code, md_text
 
 WHERE_ITEM = "Layout > Item Properties"
 TEMPLATE_STEPS = (
@@ -263,7 +263,11 @@ def layouts_chapter(doc, model):
             continue
         pages = lay.get("pages") or []
         items = [i for i in lay.get("items") or [] if "error" not in i]
-        doc.para(f"{len(pages)} pages, {len(items)} items, {len(lay.get('multiframes') or [])} tables or frames.")
+        frames = len(lay.get("multiframes") or [])
+        doc.para(
+            f"{fmt_count(len(pages), 'page')}, {fmt_count(len(items), 'item')}, "
+            f"{fmt_count(frames, 'table or frame', 'tables or frames')}."
+        )
         for p in pages:
             if p.get("image"):
                 doc.para(_img(p["image"], f"Page {p['number']} of {lay.get('name')}"))

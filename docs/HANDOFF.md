@@ -191,6 +191,11 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
   - 2026-11-12: `qml_folder` style library (runner._plan_qml_export). Found while testing: QGIS writes
     absolute paths into QML and does NOT resolve relative ones on load (loadNamedStyle keeps "./x.svg"
     literally), so relative-mode QML broke SVG markers; QML is now excluded from the relative pass.
+- P7 README screenshots (2026-11-12): `docs/images/dialog.png` (the dialog grabbed offscreen with clean
+  settings) and `docs/images/report_pages.png` (pages 1, 3, 7 and 13 of the layout fixture's PDF at
+  70 dpi, scaled to 1600 px). Made from synthetic fixtures only, never from the owner's projects.
+  Regenerate: `make fixtures`, document `layout.qgz`, `pdftoppm -r 70`. Fixed on the way: counts in
+  the report agree in number (`render.text.fmt_count`).
 - Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
   smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
   version 0.1.0, tag, plugins.qgis.org upload).
