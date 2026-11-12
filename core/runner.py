@@ -34,7 +34,7 @@ from .collectors.project import collect_bookmarks, collect_project, collect_rela
 from .model import DocModel
 from .options import DocOptions
 from .paths import PathStyle, restyle
-from .safe_paths import OutputFolder
+from .safe_paths import OutputFolder, sanitize_name
 
 PROJECT_SUFFIXES = (".qgz", ".qgs")
 OUTPUT_NAMES = {"json": "project.json", "markdown": "report.md", "html": "report.html", "pdf": "report.pdf"}
@@ -139,7 +139,9 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None, unsa
         # convert one by one (symbol-layer SVG paths, Tier B samples, exported QML and QPT).
         # Rewrite every one that lies under the project folder or its parents.
         restyle(model, paths)
-        sink.restyle_text(paths.text)
+        # QML files keep full paths, as QGIS writes them: QGIS does not resolve relative SVG or
+        # image paths when it loads a QML file, so a relative path would break the style.
+        sink.restyle_text(paths.text, skip=(".qml",))
     if not options.redact:
         model.add_problem("warning", "security", "Redaction was turned off: this output may contain credentials.")
     if sink.dropped:
@@ -147,6 +149,29 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None, unsa
             "warning", "images", f"{sink.dropped} images or files were skipped: the size budget was reached."
         )
     return model
+
+
+def _plan_qml_export(model, sink, options, project_dir):
+    """Names for the optional style library (options.qml_folder): one <layer name>.qml per layer
+    with a style. Checked for conflicts before anything is written. Returns (folder, [(name, bytes)])."""
+    if not options.qml_folder:
+        return None, []
+    folder = OutputFolder(options.qml_folder, overwrite=options.overwrite)
+    plan, used = [], set()
+    shown = PathStyle(project_dir, options.paths)  # how the report names the exported files
+    for lyr in model.layers:
+        qml = (lyr.style or {}).get("qml")
+        if not qml or qml not in sink.files:
+            continue
+        base = sanitize_name(lyr.name)[:100] or "layer"
+        name, n = f"{base}.qml", 2
+        while name.lower() in used:
+            name, n = f"{base}-{n}.qml", n + 1
+        used.add(name.lower())
+        plan.append((name, sink.files[qml]))
+        lyr.style["qml_export"] = shown.show(str(folder.root / name))
+    folder.check_writable([n for n, _ in plan])
+    return folder, plan
 
 
 def document_project(project_or_path, output_folder, options=None, feedback=None, screenshotter=None):
@@ -165,10 +190,14 @@ def document_project(project_or_path, output_folder, options=None, feedback=None
     # Every artifact name is checked before anything is written, so a conflict never leaves
     # a half-written folder. Images and styles are written first, then the reports.
     out.check_writable(list(sink.files))
+    project_dir = os.path.dirname(os.path.abspath(project.fileName())) if project.fileName() else None
+    qml_out, qml_plan = _plan_qml_export(model, sink, options, project_dir)
 
     result = RunResult(model=model, problems=model.problems, redactions=model.redactions)
     for name, data in sink.files.items():
         result.files.append(out.write_bytes(name, data))
+    for name, data in qml_plan:
+        result.files.append(qml_out.write_bytes(name, data))
     for fmt in options.formats:
         if fmt == "json":
             data = render_json(model).encode("utf-8")

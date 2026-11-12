@@ -186,6 +186,11 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
     then delete) has no loop there, and the owner's desktop run took 551 screenshots, so this is a harness
     artifact; not resolved. ptrace is blocked (yama ptrace_scope=1), so no native stack. Raster Layer
     Properties uses setModal(true) + show() and returns at once: grab_modal now waits for it.
+  - 2026-11-12: `screenshot_pages` (changed/all; gui/screenshots.py layer_pages_with_changes,
+    project_pages_with_changes; provider-set fid constraints ignored). Wildlands estimate: 46 layer pages.
+  - 2026-11-12: `qml_folder` style library (runner._plan_qml_export). Found while testing: QGIS writes
+    absolute paths into QML and does NOT resolve relative ones on load (loadNamedStyle keeps "./x.svg"
+    literally), so relative-mode QML broke SVG markers; QML is now excluded from the relative pass.
 - Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
   smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
   version 0.1.0, tag, plugins.qgis.org upload).

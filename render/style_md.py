@@ -497,6 +497,8 @@ def style_chapter(doc, lyr):
         )
     if style.get("qml"):
         doc.para(
-            f"Style file: {md_code(style['qml'])}. To apply it, open **Layer Properties > Symbology**, "
+            f"Style file: {md_code(style['qml'])}"
+            + (f", also exported as {md_code(style['qml_export'])}" if style.get("qml_export") else "")
+            + ". To apply it, open **Layer Properties > Symbology**, "
             "choose **Style > Load Style** and select this file."
         )

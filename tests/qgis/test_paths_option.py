@@ -5,7 +5,9 @@ import json
 
 import pytest
 
-TEXT_SUFFIXES = (".json", ".md", ".html", ".qml", ".qpt", ".xml")
+# QML is left out on purpose: QML files keep full paths, as QGIS writes them, because QGIS does not
+# resolve relative paths when loading a QML (tests/qgis/test_qml_export.py).
+TEXT_SUFFIXES = (".json", ".md", ".html", ".qpt", ".xml")
 
 
 def _texts(folder):

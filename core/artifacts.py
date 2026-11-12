@@ -43,12 +43,12 @@ class ArtifactSink:
 
     TEXT_SUFFIXES = (".qml", ".qpt", ".xml", ".txt", ".md", ".json", ".svg")
 
-    def restyle_text(self, convert):
+    def restyle_text(self, convert, skip=()):
         """Apply convert(str) -> str to every text artifact (QML, QPT, ...). Used to make paths
         relative after collection. Sizes are recomputed; the budget is not re-checked (paths only
         get shorter or stay the same in practice)."""
         for name, data in list(self.files.items()):
-            if not name.lower().endswith(self.TEXT_SUFFIXES):
+            if not name.lower().endswith(self.TEXT_SUFFIXES) or name.lower().endswith(tuple(skip)):
                 continue
             try:
                 text = data.decode("utf-8")

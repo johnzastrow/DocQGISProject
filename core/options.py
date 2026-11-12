@@ -34,6 +34,7 @@ class DocOptions:
     screenshots: str = "none"  # see SCREENSHOT_SCOPES; ignored outside the QGIS window
     screenshot_layers: tuple = ()  # layer ids for screenshots == "layers"
     screenshot_pages: str = "changed"  # see SCREENSHOT_PAGES
+    qml_folder: str = ""  # also write each layer's style as <layer name>.qml here ("" = off)
 
     def validate(self):
         formats = tuple(self.formats)
@@ -58,6 +59,8 @@ class DocOptions:
             raise ValueError(f"screenshot_layers must be up to {MAX_SCREENSHOT_LAYERS} layer ids")
         if self.screenshots == "layers" and not layers:
             raise ValueError('screenshots="layers" needs at least one layer in screenshot_layers')
+        if not isinstance(self.qml_folder, str) or len(self.qml_folder) > 4096 or "\x00" in self.qml_folder:
+            raise ValueError("qml_folder must be a folder path (or empty for no export)")
         if self.screenshot_pages not in SCREENSHOT_PAGES:
             raise ValueError(
                 f"unknown screenshot page choice {self.screenshot_pages!r}; allowed: {list(SCREENSHOT_PAGES)}"

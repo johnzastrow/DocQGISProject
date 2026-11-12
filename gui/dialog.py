@@ -157,6 +157,23 @@ class DocumentDialog(QDialog):
             )
         )
         ol.addRow(tr("Paths"), self.paths)
+        self.qml_export = QCheckBox(tr("Also export each layer's style (QML) to:"))
+        self.qml_export.setToolTip(
+            tr(
+                "Besides the styles/ folder of the report, write one QML style file per layer, named after the "
+                "layer (Facilities.qml), into a second folder: a style library you can load into other projects "
+                "with Layer Properties > Style > Load Style."
+            )
+        )
+        self.qml_folder = QgsFileWidget()
+        self.qml_folder.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
+        self.qml_folder.setToolTip(
+            tr("Folder for the layer QML files. Files in it are only replaced if this plugin wrote them.")
+        )
+        row = QHBoxLayout()
+        row.addWidget(self.qml_export)
+        row.addWidget(self.qml_folder, 1)
+        ol.addRow(row)
         self.embed = QCheckBox(tr("Put SVG and image files used by the project inside the JSON"))
         self.embed.setToolTip(tr("So a rebuild elsewhere has them (up to 20 MB in total). Fonts are only listed."))
         self.load_data = QCheckBox(tr("Open local data for feature counts and extents"))
@@ -237,8 +254,9 @@ class DocumentDialog(QDialog):
         self.btn_cancel.clicked.connect(self.cancel)
         self.btn_open.clicked.connect(self.open_report)
         self.btn_close.clicked.connect(self.reject)
-        for w in (self.rb_open, self.rb_file, self.images):
+        for w in (self.rb_open, self.rb_file, self.images, self.qml_export):
             w.toggled.connect(self._update_state)
+        self.qml_folder.fileChanged.connect(self._update_state)
         self.shots.currentIndexChanged.connect(self._update_state)
         self.project_file.fileChanged.connect(self._update_state)
         self.out_folder.fileChanged.connect(self._update_state)
@@ -270,6 +288,8 @@ class DocumentDialog(QDialog):
         self.overwrite.setChecked(_bool(s.value(KEY + "overwrite"), d.overwrite))
         self._select(self.shots, s.value(KEY + "screenshots", d.screenshots))
         self._select(self.paths, s.value(KEY + "paths", d.paths))
+        self.qml_export.setChecked(_bool(s.value(KEY + "qml_export"), False))
+        self.qml_folder.setFilePath(s.value(KEY + "qml_folder", ""))
         self.shots_changed.setChecked(s.value(KEY + "screenshot_pages", d.screenshot_pages) == "changed")
         self._fill_layers()
 
@@ -289,6 +309,8 @@ class DocumentDialog(QDialog):
         s.setValue(KEY + "overwrite", self.overwrite.isChecked())
         s.setValue(KEY + "screenshots", self.shots.currentData())
         s.setValue(KEY + "paths", self.paths.currentData())
+        s.setValue(KEY + "qml_export", self.qml_export.isChecked())
+        s.setValue(KEY + "qml_folder", self.qml_folder.filePath())
         s.setValue(KEY + "screenshot_pages", "changed" if self.shots_changed.isChecked() else "all")
 
     @staticmethod
@@ -343,11 +365,13 @@ class DocumentDialog(QDialog):
             self.network,
             self.overwrite,
             self.paths,
+            self.qml_export,
             *self.fmt_boxes.values(),
         ):
             w.setEnabled(idle)
         self.project_file.setEnabled(idle and not open_project)
         self.dpi.setEnabled(idle and self.images.isChecked())
+        self.qml_folder.setEnabled(idle and self.qml_export.isChecked())
         shots_possible = idle and open_project and self.images.isChecked()
         self.shots.setEnabled(shots_possible)
         self.shots_changed.setEnabled(shots_possible and self.shots.currentData() != "none")
@@ -365,6 +389,8 @@ class DocumentDialog(QDialog):
         self.shots_note.setText(note)
         self.shots_note.setVisible(bool(note))
         ready = bool(self._formats()) and bool(self.out_folder.filePath())
+        if self.qml_export.isChecked():
+            ready = ready and bool(self.qml_folder.filePath())
         if not open_project:
             ready = ready and self.project_file.filePath().lower().endswith((".qgz", ".qgs"))
         self.btn_run.setEnabled(idle and ready)
@@ -384,6 +410,7 @@ class DocumentDialog(QDialog):
             embed_resources=self.embed.isChecked(),
             paths=self.paths.currentData(),
             screenshot_pages="changed" if self.shots_changed.isChecked() else "all",
+            qml_folder=self.qml_folder.filePath() if self.qml_export.isChecked() else "",
             load_data=self.load_data.isChecked(),
             redact=self.redact.isChecked(),
             include_network_layers=self.network.isChecked(),

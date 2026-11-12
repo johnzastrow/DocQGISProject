@@ -56,10 +56,13 @@ Options: `formats` (json, markdown, html, pdf; default all), `detail` (summary, 
 on), `load_data` (open local data for counts and extents; default on), `redact` (default on),
 `include_network_layers` (default off: web services and databases are never contacted), `overwrite`
 (default off: files this plugin did not write are never replaced), `screenshots` and
-`screenshot_layers` (dialog only), and `paths`: `"relative"` (default) writes every path relative
+`screenshot_layers` and `screenshot_pages` (dialog only), `qml_folder` (also write each layer's
+style as `<layer name>.qml` into this folder, a style library), and `paths`: `"relative"` (default) writes every path relative
 to the project folder (`./`, `../`), so no home-folder path appears in any output and the outputs
 stay valid when the whole folder moves; `"absolute"` writes full paths everywhere, including the
-project file. This covers the reports, the JSON, the QML and QPT files and the rebuild data.
+project file. This covers the reports, the JSON, the QPT files and the rebuild data. QML style
+files always keep full paths, as QGIS writes them: QGIS does not resolve relative paths when it
+loads a QML file.
 
 The rebuilder treats the JSON as untrusted: it checks it in full first, removes macros and other
 Python code, refuses absolute data paths you have not mapped (pass `allow_absolute=True` for a full-path JSON

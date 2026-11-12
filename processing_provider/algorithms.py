@@ -61,6 +61,7 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
     SCREENSHOTS = "SCREENSHOTS"
     EMBED_RESOURCES = "EMBED_RESOURCES"
     PATHS = "PATHS"
+    QML_FOLDER = "QML_FOLDER"
     LOAD_DATA = "LOAD_DATA"
     REDACT = "REDACT"
     INCLUDE_NETWORK_LAYERS = "INCLUDE_NETWORK_LAYERS"
@@ -148,6 +149,14 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterFolderDestination(
+                self.QML_FOLDER,
+                tr("Also export each layer's style (QML) to this folder"),
+                optional=True,
+                createByDefault=False,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterBoolean(
                 self.EMBED_RESOURCES, tr("Embed SVG and image files used by the project in the JSON"), True
             )
@@ -186,6 +195,7 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
             image_dpi=self.parameterAsInt(parameters, self.IMAGE_DPI, context),
             embed_resources=self.parameterAsBoolean(parameters, self.EMBED_RESOURCES, context),
             paths=PATH_MODES[self.parameterAsEnum(parameters, self.PATHS, context)],
+            qml_folder=self.parameterAsString(parameters, self.QML_FOLDER, context) or "",
             load_data=self.parameterAsBoolean(parameters, self.LOAD_DATA, context),
             redact=self.parameterAsBoolean(parameters, self.REDACT, context),
             include_network_layers=self.parameterAsBoolean(parameters, self.INCLUDE_NETWORK_LAYERS, context),

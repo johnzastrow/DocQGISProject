@@ -49,12 +49,19 @@ def test_document_then_rebuild(provider, fixtures_dir, tmp_path):
     out = tmp_path / "doc"
     results, ok, _fb = _run(
         "docqgisproject:documentproject",
-        {"INPUT": str(fixtures_dir / "layout.qgz"), "OUTPUT_FOLDER": str(out), "FORMATS": [0, 1], "IMAGES": False},
+        {
+            "INPUT": str(fixtures_dir / "layout.qgz"),
+            "OUTPUT_FOLDER": str(out),
+            "FORMATS": [0, 1],
+            "IMAGES": False,
+            "QML_FOLDER": str(tmp_path / "qml"),
+        },
     )
     assert ok
     assert results["JSON"].endswith("project.json") and results["MARKDOWN"].endswith("report.md")
     assert results["HTML"] is None and results["PDF"] is None
     assert results["FILES"] >= 2 and results["REDACTIONS"] == 0
+    assert list((tmp_path / "qml").glob("*.qml"))  # the style library
 
     target = fixtures_dir / "rebuilt_by_processing.qgz"
     results, ok, _fb = _run(

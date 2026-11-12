@@ -20,6 +20,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-12: Option `qml_folder` (dialog: "Also export each layer's style (QML) to:", Processing:
+  "Also export each layer's style (QML) to this folder"): one QML per layer, named after the layer
+  (`Facilities.qml`), written into a second folder as a style library. Checked for conflicts with
+  the same rules as the output folder before anything is written; the report names each copy.
 - 2026-11-12: Screenshots of only the dialog pages that hold something (option
   `screenshot_pages`, default `changed`; dialog: "Only pages with settings that differ from QGIS
   defaults"). A page is pictured when the report found settings on it that differ from a new
@@ -135,6 +139,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- 2026-11-12: With relative paths, QML style files got paths relative to the project folder, but
+  QGIS does not resolve relative paths when it loads a QML file, so a style loaded from them lost
+  its SVG markers and image fills. QML files now keep full paths, as QGIS writes them (the one
+  place relative mode keeps full paths).
 - 2026-11-12: Raster Layer Properties: QGIS shows that dialog modally with show() and returns at once
   (not exec()), so the screenshot code could stop waiting before the dialog appeared and leave it
   open. It now keeps waiting until the dialog is found and closed, or the wait limit passes.

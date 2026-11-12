@@ -107,6 +107,9 @@
             "changed",
             "all"
           ]
+        },
+        "qml_folder": {
+          "type": "string"
         }
       }
     },
