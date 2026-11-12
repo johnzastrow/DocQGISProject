@@ -3,7 +3,7 @@
 import re
 
 MAX_TABLE_COLUMNS = 6
-MAX_HEADING_LEVEL = 4
+MAX_HEADING_LEVEL = 5
 _REPR_RE = re.compile(r"\{'[^']*':|\{\"[^\"]*\":|<Qgs\w+[: ]|<qgis\.|PyQt6\.|object at 0x")
 
 

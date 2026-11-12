@@ -28,6 +28,7 @@ from .collectors.layouts import collect_layouts
 from .collectors.maps import project_overview
 from .collectors.fonts_files import collect_resources
 from .collectors.tier_b import collect_tier_b
+from .collectors.layer_settings import collect_layer_settings
 from .collectors.rebuild_payload import collect_rebuild
 from .collectors.project import collect_bookmarks, collect_project, collect_relations, collect_themes, collect_variables
 from .model import DocModel
@@ -110,6 +111,7 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None, unsa
         feedback.setProgress(10)
     if step("layers", collect_layers, project, model, options, feedback, sink) is False:
         raise Cancelled()
+    step("layer settings", collect_layer_settings, project, model, options)
     step("variables", collect_variables, project, model, options.redact)
     step("relations", collect_relations, project, model)
     step("map themes", collect_themes, project, model)

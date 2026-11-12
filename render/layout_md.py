@@ -286,6 +286,9 @@ def layouts_chapter(doc, model):
                     for v in lay["variables"]
                 ],
             )
+        figures = getattr(doc, "figures", None)  # dialog screenshots, when the run took them
+        if figures:
+            figures("layout", ("Layout Designer",), target=lay.get("name"))
         doc.heading(4, "Items")
         doc.para("Items as listed in the Items panel (top first). Positions are from the top-left of their page.")
         doc.table(
@@ -299,11 +302,15 @@ def layouts_chapter(doc, model):
         for item in items:
             rows = _detail_rows(item) + _common_rows(item)
             sym = (item.get("details") or {}).get("symbol")
-            if not rows and not item.get("image") and not sym:
+            page = f"Item: {item.get('name')}"
+            shot = bool(figures) and page in doc.shots.pages_left("layout", target=lay.get("name"))
+            if not rows and not item.get("image") and not sym and not shot:
                 continue
-            doc.para(f"*{md_text(item.get('name'))}* ({md_text(item.get('type'))})")
+            doc.heading(5, f"{md_text(item.get('name'))} ({md_text(item.get('type'))})")
             if item.get("image"):
                 doc.para(_img(item["image"], f"Close-up of {item.get('name')}"))
+            if shot:
+                figures("layout", (page,), target=lay.get("name"))
             if rows:
                 doc.table(["Setting", "Value", "Where in QGIS"], [[a, b, f"{WHERE_ITEM} > {c}"] for a, b, c in rows])
             if sym:

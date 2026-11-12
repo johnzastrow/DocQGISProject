@@ -36,6 +36,8 @@ SEMANTIC_KEYS = (
     "variables",
     "layouts",
     "resources",
+    "project_settings",
+    "project_settings_summary",
 )
 
 

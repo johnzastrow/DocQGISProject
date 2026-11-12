@@ -76,7 +76,18 @@ def test_markdown_without_redaction_has_banner():
 def test_json_is_strict_and_structured():
     data = json.loads(render_json(_model()))
     assert data["schema"] == "docqgisproject/1"
-    assert set(data) == {"schema", "generator", "options", "semantic", "rebuild", "screenshots", "problems", "redactions", "coverage", "tier_b"}
+    assert set(data) == {
+        "schema",
+        "generator",
+        "options",
+        "semantic",
+        "rebuild",
+        "screenshots",
+        "problems",
+        "redactions",
+        "coverage",
+        "tier_b",
+    }
     lyr = data["semantic"]["layers"][0]
     assert lyr["extent"][3] is None  # NaN became null
     assert data["semantic"]["variables"][0]["value"] == {"redacted": "api_key"}
@@ -119,10 +130,24 @@ def test_rebuild_appendix():
         "project_file": "p.qgz",
         "project_xml": "<qgis/>",
         "sources": [
-            {"id": "s1", "provider": "ogr", "kind": "file", "uri": "./a.gpkg|layername=a", "layer_ids": ["l1"],
-             "redacted": False, "file": {"path": "./a.gpkg", "exists": False, "size": None, "sha256": None}},
-            {"id": "s2", "provider": "postgres", "kind": "database", "uri": "dbname='g' user='[REDACTED:user]' " + HOSTILE,
-             "layer_ids": ["l2", "l3"], "redacted": True, "file": None},
+            {
+                "id": "s1",
+                "provider": "ogr",
+                "kind": "file",
+                "uri": "./a.gpkg|layername=a",
+                "layer_ids": ["l1"],
+                "redacted": False,
+                "file": {"path": "./a.gpkg", "exists": False, "size": None, "sha256": None},
+            },
+            {
+                "id": "s2",
+                "provider": "postgres",
+                "kind": "database",
+                "uri": "dbname='g' user='[REDACTED:user]' " + HOSTILE,
+                "layer_ids": ["l2", "l3"],
+                "redacted": True,
+                "file": None,
+            },
         ],
         "resources": [],
     }
@@ -138,17 +163,56 @@ def test_rebuild_appendix():
 def test_screenshot_appendix():
     m = _model()
     assert "No dialog screenshots" in render_markdown(m)
+    layer_id = m.layers[0].id
     m.screenshots = {
         "environment": {"QGIS": "4.2.3", "Style": "Fusion"},
         "items": [
             {"kind": "project", "target": "project", "page": "General", "image": "images/screenshots/project_01.png"},
-            {"kind": "project", "target": "project", "page": "Data Sources", "image": None, "skipped": "it lists data sources"},
-            {"kind": "layer", "target": HOSTILE, "target_id": "l1", "page": "Symbology",
-             "image": "images/screenshots/layer_l1_01.png"},
+            {
+                "kind": "project",
+                "target": "project",
+                "page": "Data Sources",
+                "image": None,
+                "skipped": "it lists data sources",
+            },
+            {
+                "kind": "layer",
+                "target": HOSTILE,
+                "target_id": layer_id,
+                "page": "Symbology",
+                "image": "images/screenshots/layer_001_01.png",
+                "masked": 2,
+            },
+            {
+                "kind": "layer",
+                "target": HOSTILE,
+                "target_id": layer_id,
+                "page": "Rendering",
+                "image": "images/screenshots/layer_001_02.png",
+            },
+            {
+                "kind": "layer",
+                "target": "gone",
+                "target_id": "not-a-layer",
+                "page": "Symbology",
+                "image": "images/screenshots/layer_999_01.png",
+            },
         ],
     }
     md = render_markdown(m)
-    assert "![Project Properties > General](images/screenshots/project_01.png)" in md
-    assert "**Data Sources**: skipped, it lists data sources." in md
-    assert "### Layer Properties: " in md and "<script>" not in md.split("### Layer Properties: ")[1].split("\n")[0]
+    import re
+
+    def heading(title):
+        return re.search(rf"^#+ [\d.]+ {re.escape(title)}$", md, re.M).start()
+
+    appendix = heading("Appendix: QGIS dialog screenshots")
+    # Woven into the chapters, before the appendix, next to the settings they show.
+    general = md.index("![Screenshot: Project Properties > General](images/screenshots/project_01.png)")
+    assert heading("Project settings") < general < appendix
+    rendering = md.index("](images/screenshots/layer_001_02.png)")
+    assert heading("Rendering") > heading("Other layer settings") and heading("Rendering") < rendering < appendix
+    assert "2 fields showing paths or logins are blacked out" in md
+    assert "| Project Properties | Data Sources | it lists data sources | 1 |" in md
+    # A screenshot no chapter claims still appears, in the appendix.
+    assert md.index("](images/screenshots/layer_999_01.png)") > heading("Other screenshots") > appendix
     assert lint_markdown(md) == []

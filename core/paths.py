@@ -14,6 +14,8 @@ import posixpath
 import re
 
 PATH_MODES = ("relative", "absolute")
+# A URL scheme ("javascript:", "postgres:"), not a Windows drive ("C:"), is never a file path.
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:")
 _NOT_FILES = ("http://", "https://", "ftp://", "base64:", "data:", ":/", "/vsicurl", "/vsis3", "/vsigs", "/vsiaz")
 
 
@@ -42,14 +44,14 @@ class PathStyle:
                 folder, up = parent, up + 1
 
     def absolute(self, path):
-        if not path or not isinstance(path, str) or path.lower().startswith(_NOT_FILES):
+        if not path or not isinstance(path, str) or path.lower().startswith(_NOT_FILES) or _SCHEME_RE.match(path):
             return path
         if self.p.isabs(path) or not self.dir:
             return self.p.normpath(path)
         return self.p.normpath(self.p.join(self.dir, path))
 
     def show(self, path):
-        if not path or not isinstance(path, str) or path.lower().startswith(_NOT_FILES):
+        if not path or not isinstance(path, str) or path.lower().startswith(_NOT_FILES) or _SCHEME_RE.match(path):
             return path
         full = self.absolute(path)
         if self.mode == "absolute" or not self.dir:

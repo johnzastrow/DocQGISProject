@@ -4,8 +4,15 @@
 Order follows how a person rebuilds a project: overview, "How to recreate this project",
 then detail chapters, then problems. Settings are Setting | Value | Where in QGIS rows.
 Every project-derived string goes through md_text() or md_code() (render/text.py).
-Tables stay at 6 columns or fewer and headings at level 4 or above.
+Tables stay at 6 columns or fewer and headings at level 5 or above. Headings from level 3 down
+are numbered automatically (5.1, 5.1.3, 5.1.6.2) from the chapter number.
+
+Dialog screenshots (when taken) are placed where the settings they show are documented: the
+Symbology page under Symbology, the Elevation page under Elevation, and so on. `_Shots` hands
+each screenshot out once; whatever no section claims ends up in the screenshots appendix.
 """
+
+import re
 
 from .strings import WHERE, add_layer_hint
 from .layout_md import TEMPLATE_STEPS, layouts_chapter
@@ -23,12 +30,60 @@ from .text import (
 _SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 
 
-class _Doc:
-    """Tiny Markdown builder that keeps blank lines between blocks."""
+_NUMBER_RE = re.compile(r"^(\d+(?:\.\d+)*)\.? ")
 
-    def __init__(self, detail="standard"):
+
+class _Shots:
+    """The dialog screenshots of a run, handed out once each to the section they belong to."""
+
+    KIND_LABEL = {"project": "Project Properties", "layer": "Layer Properties", "layout": "Layout"}
+
+    def __init__(self, screenshots):
+        self.items = list((screenshots or {}).get("items") or [])
+        self.used = set()
+
+    def _match(self, i, item, kind, target, target_id):
+        return (
+            i not in self.used
+            and item.get("image")
+            and item["kind"] == kind
+            and (target_id is None or item.get("target_id") == target_id)
+            and (target is None or item.get("target") == target)
+        )
+
+    def take(self, kind, pages=None, target=None, target_id=None):
+        """Unused screenshots of `kind` (and target), limited to page titles in `pages`."""
+        out = []
+        wanted = {p.lower() for p in pages} if pages is not None else None
+        for i, item in enumerate(self.items):
+            if self._match(i, item, kind, target, target_id) and (wanted is None or item["page"].lower() in wanted):
+                self.used.add(i)
+                out.append(item)
+        return out
+
+    def pages_left(self, kind, target=None, target_id=None):
+        return [item["page"] for i, item in enumerate(self.items) if self._match(i, item, kind, target, target_id)]
+
+
+class _Doc:
+    """Tiny Markdown builder that keeps blank lines between blocks and numbers headings."""
+
+    def __init__(self, detail="standard", screenshots=None):
         self.lines = []
         self.detail = detail  # summary | standard | full
+        self.shots = _Shots(screenshots)
+        self._numbers = {}  # heading level -> number of the current heading at that level
+        self._counters = {}  # heading level -> last auto number used below the current parent
+
+    def figures(self, kind, pages=None, target=None, target_id=None):
+        """Place the screenshots of these dialog pages here, each with a caption."""
+        for item in self.shots.take(kind, pages, target, target_id):
+            where = f"{_Shots.KIND_LABEL.get(kind, kind)} > {item['page']}"
+            if kind == "layout":
+                where = f"Layout Designer ({item['target']}) > {item['page']}"
+            self.para(f"![Screenshot: {md_text(where)}]({item['image']})")
+            masked = f" {item['masked']} fields showing paths or logins are blacked out." if item.get("masked") else ""
+            self.para(f"*Where to set this in QGIS: {md_text(where)}.{masked}*")
 
     def block(self, *lines):
         if self.lines and self.lines[-1] != "":
@@ -37,6 +92,18 @@ class _Doc:
         self.lines.append("")
 
     def heading(self, level, text):
+        if level >= 2:
+            m = _NUMBER_RE.match(text)
+            number = m.group(1) if m else None
+            parent = self._numbers.get(level - 1)
+            if number is None and level >= 3 and parent:
+                self._counters[level] = self._counters.get(level, 0) + 1
+                number = f"{parent}.{self._counters[level]}"
+                text = f"{number} {text}"
+            self._numbers[level] = number
+            for deeper in range(level + 1, 7):
+                self._numbers.pop(deeper, None)
+                self._counters.pop(deeper, None)
         self.block("#" * level + " " + text)
 
     def para(self, text):
@@ -216,6 +283,7 @@ def _project_settings(doc, model):
         ("Python macros", f"Present, {p.macro_lines} lines (not run)" if p.has_macros else "None", "macros"),
     ]
     _settings(doc, rows)
+    doc.figures("project", ("General", "CRS", "View Settings"))
     if p.transform_operations:
         doc.heading(3, "Datum transformations")
         doc.table(
@@ -225,6 +293,7 @@ def _project_settings(doc, model):
                 for t in p.transform_operations
             ],
         )
+        doc.figures("project", ("Transformations",))
     md = p.metadata or {}
     if any(md.get(k) for k in ("title", "abstract", "author", "keywords")):
         doc.heading(3, "Project metadata")
@@ -243,6 +312,36 @@ def _project_settings(doc, model):
                 ),
             ],
         )
+        doc.figures("project", ("Metadata",))
+    _other_project_settings(doc, model)
+
+
+def _other_project_settings(doc, model):
+    settings = model.project_settings or {}
+    # Relations and Variables pages belong to their own chapters.
+    later = {"relations", "variables"}
+    pages = list(settings) + [
+        pg for pg in doc.shots.pages_left("project") if pg.lower() not in later and pg not in settings
+    ]
+    summary = model.project_settings_summary or {}
+    doc.heading(3, "Other project settings")
+    if not pages and not summary.get("annotation_items"):
+        doc.para("All other project settings are at QGIS defaults.")
+        return
+    doc.para("Settings that differ from a new project in QGIS, by the dialog page where they are set.")
+    if summary.get("annotation_items"):
+        doc.para(
+            f"The main annotation layer holds {fmt_number(summary['annotation_items'])} annotations "
+            "(**Layers panel > Annotations**)."
+        )
+    for page in pages:
+        doc.heading(4, md_text(page))
+        rows = settings.get(page) or []
+        if rows:
+            doc.table(["Setting", "Value", "QGIS default"], _settings_rows(rows))
+        else:
+            doc.para("All settings on this page are at QGIS defaults.")
+        doc.figures("project", (page,))
 
 
 def _layer_tree(doc, model):
@@ -390,6 +489,7 @@ def _layers(doc, model):
                 f"{len(lyr.fields)} fields. Where in QGIS: **{WHERE['fields']}**; widgets: **{WHERE['widgets']}**."
             )
             _fields_table(doc, lyr)
+            doc.figures("layer", ("Fields",), target_id=lyr.id)
         if lyr.joins:
             doc.heading(4, "Joins")
             doc.para(f"Where in QGIS: **{WHERE['joins']}**.")
@@ -407,6 +507,99 @@ def _layers(doc, model):
                     for j in lyr.joins
                 ],
             )
+            doc.figures("layer", ("Joins",), target_id=lyr.id)
+        _elevation(doc, lyr)
+        _other_layer_settings(doc, lyr)
+
+
+# --------------------------------------------------------------------------- settings vs defaults
+
+_SETTING_WORDS = {
+    "zoffset": "Z offset",
+    "zscale": "Z scale",
+    "clamping": "Altitude clamping",
+    "binding": "Altitude binding",
+    "extrusionEnabled": "Extrusion",
+    "extrusion": "Extrusion height",
+    "respectLayerSymbol": "Respect layer symbology",
+    "showMarkerSymbolInSurfacePlots": "Show markers in surface plots",
+    "customToleranceEnabled": "Custom tolerance",
+    "symbology": "Profile symbology",
+    "enabled": "Enabled",
+    "band": "Band",
+    "mode": "Mode",
+    "type": "Type",
+}
+
+
+def _setting_label(key):
+    """A readable name for a flattened setting key: "Legend.filterByMap" -> "Legend > filter by map"."""
+    parts = [p for p in re.split(r"[.]", key.replace("@", ".")) if p]
+    words = []
+    for part in parts:
+        if part in _SETTING_WORDS:
+            words.append(_SETTING_WORDS[part])
+            continue
+        spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", part).replace("_", " ").replace("-", " ").strip()
+        words.append(spaced[:1].upper() + spaced[1:].lower() if spaced else part)
+    return " > ".join(words) or key
+
+
+def _settings_rows(rows):
+    return [
+        [
+            md_text(_setting_label(r["setting"])),
+            md_code(r["value"]) if r["value"] != "" else "Empty",
+            md_code(r["default"]) if r.get("default") not in (None, "") else "Not set",
+        ]
+        for r in rows
+    ]
+
+
+def _elevation(doc, lyr):
+    elev = lyr.elevation or {}
+    shots = doc.shots.pages_left("layer", target_id=lyr.id)
+    has_shot = any(p.lower() == "elevation" for p in shots)
+    if not elev and not has_shot:
+        return
+    doc.heading(4, "Elevation")
+    rows = elev.get("rows") or []
+    if rows:
+        doc.para("Settings that differ from a new layer. Where in QGIS: **Layer Properties > Elevation**.")
+        doc.table(["Setting", "Value", "QGIS default"], _settings_rows(rows))
+    else:
+        doc.para("All elevation settings are at QGIS defaults (**Layer Properties > Elevation**).")
+    colours = elev.get("profile_colours") or []
+    if colours and doc.detail == "full":
+        doc.para(
+            "Elevation profile symbol colours (QGIS picks these at random for each new layer): "
+            + ", ".join(md_code(c.split(",rgb:")[0]) for c in colours)
+            + "."
+        )
+    doc.figures("layer", ("Elevation",), target_id=lyr.id)
+
+
+def _other_layer_settings(doc, lyr):
+    settings = lyr.settings or {}
+    pages = list(settings)
+    for page in doc.shots.pages_left("layer", target_id=lyr.id):
+        if page not in pages:
+            pages.append(page)
+    doc.heading(4, "Other layer settings")
+    if not pages:
+        doc.para("All other layer settings are at QGIS defaults.")
+        return
+    doc.para("Settings that differ from a new layer in QGIS, by the dialog page where they are set.")
+    for page in pages:
+        doc.heading(5, md_text(page))
+        rows = settings.get(page) or []
+        if rows:
+            where = page if "(" in page else f"Layer Properties > {page}"
+            doc.para(f"Where in QGIS: **{md_text(where)}**.")
+            doc.table(["Setting", "Value", "QGIS default"], _settings_rows(rows))
+        else:  # a screenshot of a page whose settings are all at their defaults
+            doc.para("All settings on this page are at QGIS defaults.")
+        doc.figures("layer", (page,), target_id=lyr.id)
 
 
 def _relations(doc, model):
@@ -415,6 +608,7 @@ def _relations(doc, model):
         doc.para("The project has no relations.")
         return
     doc.para(f"Where in QGIS: **{WHERE['relations']}**. The parent is the referenced layer.")
+    doc.figures("project", ("Relations",))
     doc.table(
         ["Name", "Parent layer", "Child layer", "Fields (child = parent)", "Strength"],
         [
@@ -434,11 +628,13 @@ def _variables(doc, model):
     doc.heading(2, f"{num('variables')}. Project variables")
     if not model.variables:
         doc.para("The project defines no variables of its own.")
+        doc.figures("project", ("Variables",))
         return
     doc.para(
         f"Variables defined in this project (QGIS built-in variables are not listed). Where in QGIS: **{WHERE['variables']}**."
     )
     doc.table(["Name", "Value"], [[md_code(v.name), fmt_redacted_or_text(v.value)] for v in model.variables])
+    doc.figures("project", ("Variables",))
 
 
 def _themes(doc, model):
@@ -492,7 +688,7 @@ def _problems(doc, model):
 
 
 def render_markdown(model):
-    doc = _Doc(detail=(model.options or {}).get("detail", "standard"))
+    doc = _Doc(detail=(model.options or {}).get("detail", "standard"), screenshots=model.screenshots)
     p = model.project
     title = p.title or p.file_name or "Untitled project"
     doc.heading(1, f"Project documentation: {md_text(title)}")
@@ -648,32 +844,36 @@ def _screenshots(doc, model):
     items = shots.get("items") or []
     if not items:
         doc.para(
-            "No dialog screenshots. They are optional, and only the plugin dialog in the QGIS window can take them. "
-            "The tables in the chapters above hold the same settings."
+            "No dialog screenshots. They are optional, and only the plugin dialog in the QGIS window can take them, "
+            "for the project open in QGIS. The tables in the chapters above hold the same settings."
         )
         return
+    taken = sum(1 for i in items if i.get("image"))
     doc.para(
-        "Pictures of the QGIS dialogs as they were set, taken by opening each dialog and closing it with Cancel. "
-        "Pages that show data sources, paths or logins are skipped, and fields that show a path or address are "
-        "blacked out. Your screens may look different with another theme, language or scale."
+        f"{fmt_number(taken)} screenshots of the QGIS dialogs are placed in the chapters above, next to the settings "
+        "they show. Each dialog was opened and closed with Cancel, so nothing was changed. Pages that show data "
+        "sources, addresses or logins were skipped, and fields or list rows that show a path, address or login "
+        "are blacked out. Your screens may look different with another theme, language or scale."
     )
     env = shots.get("environment") or {}
     doc.table(["Taken with", "Value"], [[md_text(k), md_text(str(v))] for k, v in env.items()])
-    current = None
+    skipped = {}
     for item in items:
-        key = (item["kind"], item["target"])
-        if key != current:
-            current = key
-            title = _SHOT_KIND.get(item["kind"], item["kind"])
-            if item["kind"] != "project":
-                title += f": {item['target']}"
-            doc.heading(3, md_text(title))
-        where = f"{_SHOT_KIND.get(item['kind'], item['kind'])} > {item['page']}"
-        if item.get("image"):
-            doc.para(f"**{md_text(item['page'])}** ({md_text(where)})")
-            doc.para(f"![{md_text(where)}]({item['image']})")
-        else:
-            doc.para(f"**{md_text(item['page'])}**: skipped, {md_text(item.get('skipped') or 'not available')}.")
+        if not item.get("image"):
+            key = (_SHOT_KIND.get(item["kind"], item["kind"]), item["page"], item.get("skipped") or "not available")
+            skipped[key] = skipped.get(key, 0) + 1
+    if skipped:
+        doc.heading(3, "Pages not pictured")
+        doc.table(
+            ["Dialog", "Page", "Why", "Times"],
+            [[md_text(k[0]), md_text(k[1]), md_text(k[2]), fmt_number(n)] for k, n in sorted(skipped.items())],
+        )
+    leftovers = [i for i in range(len(doc.shots.items)) if i not in doc.shots.used and doc.shots.items[i].get("image")]
+    if leftovers:
+        doc.heading(3, "Other screenshots")
+        doc.para("Dialog pages that no chapter above documents.")
+        for kind in ("project", "layer", "layout"):
+            doc.figures(kind)
 
 
 CHAPTERS = [

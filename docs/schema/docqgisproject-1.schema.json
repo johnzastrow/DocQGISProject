@@ -115,7 +115,9 @@
         "bookmarks",
         "variables",
         "layouts",
-        "resources"
+        "resources",
+        "project_settings",
+        "project_settings_summary"
       ],
       "additionalProperties": false,
       "properties": {
@@ -177,6 +179,12 @@
           }
         },
         "resources": {
+          "type": "object"
+        },
+        "project_settings": {
+          "type": "object"
+        },
+        "project_settings_summary": {
           "type": "object"
         }
       }

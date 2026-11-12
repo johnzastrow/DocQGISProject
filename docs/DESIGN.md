@@ -148,7 +148,7 @@ Readability rules, enforced by templates and a lint test:
 5. Raw Tier B trees, QML and QPT are appendices and downloadable files, never in the main flow.
 6. HTML has a table of contents, collapsible sections, print CSS; Markdown is clean enough to read as plain text; the PDF has page
    numbers, running headers, no clipped tables (column widths set per table type).
-7. A readability lint in the test suite: no table wider than 6 columns, no heading deeper than 4, no raw `{...}` dicts or Python repr
+7. A readability lint in the test suite: no table wider than 6 columns, no heading deeper than 5 (headings numbered from the chapter down), no raw `{...}` dicts or Python repr
    in the body, every image has alt text, reading-level and length reported per chapter. A human review of a real report is a
    release gate (section 11).
 

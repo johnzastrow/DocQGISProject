@@ -191,6 +191,36 @@ def test_grab_masks_paths_and_logins(qgis_app, plugin_pkg):
     w.close()
 
 
+def test_grab_masks_secret_rows_in_lists(qgis_app, plugin_pkg):
+    """The Variables page lists names and values in a tree: a secret-named variable's whole row
+    (its value included) is blacked out; an ordinary variable stays readable."""
+    from qgis.PyQt.QtWidgets import QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+
+    from DocQGISProject.gui.screenshots import grab_masked
+
+    w = QWidget()
+    tree = QTreeWidget()
+    tree.setColumnCount(2)
+    plain = QTreeWidgetItem(["region", "Maine"])
+    secret = QTreeWidgetItem(["service_token", "VAR-TOKEN-000"])  # pragma: allowlist secret
+    tree.addTopLevelItems([plain, secret])
+    QVBoxLayout(w).addWidget(tree)
+    w.resize(400, 200)
+    w.show()
+    image, masked = grab_masked(w)
+    assert masked == 1
+    ratio = image.devicePixelRatio() or 1.0
+    vp = tree.viewport()
+
+    def pixel(row, col):
+        c = vp.mapTo(w, tree.visualRect(tree.model().index(row, col)).center())
+        return image.pixelColor(int(c.x() * ratio), int(c.y() * ratio)).getRgb()[:3]
+
+    assert pixel(1, 1) == (40, 40, 40) and pixel(1, 0) == (40, 40, 40)  # secret row: name and value
+    assert pixel(0, 1) != (40, 40, 40)  # ordinary variable
+    w.close()
+
+
 # --------------------------------------------------------------------------- screenshotter
 
 
@@ -243,7 +273,19 @@ def test_screenshots_end_to_end(plugin_pkg, live_layout_project, tmp_path):
         if i["image"]:
             assert (tmp_path / i["image"]).is_file()
     md = (tmp_path / "report.md").read_text(encoding="utf-8")
-    assert "Appendix: QGIS dialog screenshots" in md and "](images/screenshots/project_01.png)" in md
+    import re
+
+    appendix = re.search(r"^## \d+\. Appendix: QGIS dialog screenshots$", md, re.M).start()
+    # Woven in: each screenshot sits in the section that documents its page, before the appendix.
+    assert md.index("](images/screenshots/project_01.png)") < appendix
+    for i in layer_pages:
+        if i["image"]:
+            pos = md.index(f"]({i['image']})")
+            section = md.rfind("\n#### ", 0, pos)
+            assert pos < appendix, i["page"]
+            if i["page"] == "Symbology":
+                assert md[section : section + 60].split("\n")[1].endswith("Symbology")
+    assert any(f"]({i['image']})" in md[:appendix] for i in layout_pages if i["image"])
     data = json.loads((tmp_path / "project.json").read_text(encoding="utf-8"))
     assert data["screenshots"]["environment"]["QGIS"]
 
@@ -432,3 +474,28 @@ def test_layer_list_and_screenshot_controls(dialog, live_layout_project):
     assert o.screenshots == "layers" and len(o.screenshot_layers) == 1
     dialog.images.setChecked(False)
     assert not dialog.shots.isEnabled() and dialog.options().validate().screenshots == "none"
+
+
+def test_uninspectable_view_is_blacked_out(qgis_app, plugin_pkg, monkeypatch):
+    """Fail closed: a list the masking cannot read is covered whole."""
+    from qgis.PyQt.QtWidgets import QListWidget, QVBoxLayout, QWidget
+
+    import DocQGISProject.gui.screenshots as shots
+
+    w = QWidget()
+    lst = QListWidget()
+    lst.addItems(["anything"])
+    QVBoxLayout(w).addWidget(lst)
+    w.resize(300, 150)
+    w.show()
+
+    def broken(view, root):
+        raise RuntimeError("protected")
+
+    monkeypatch.setattr(shots, "_view_rects", broken)
+    image, masked = shots.grab_masked(w)
+    assert masked == 1
+    ratio = image.devicePixelRatio() or 1.0
+    c = lst.geometry().center()
+    assert image.pixelColor(int(c.x() * ratio), int(c.y() * ratio)).getRgb()[:3] == (40, 40, 40)
+    w.close()

@@ -101,7 +101,9 @@ def test_detail_levels_change_length(plugin_pkg, fixtures_dir, tmp_path):
 
     sizes = {}
     for level in ("summary", "standard", "full"):
-        document_project(str(fixtures_dir / "styling.qgz"), str(tmp_path / level), DocOptions(detail=level, formats=("markdown",)))
+        document_project(
+            str(fixtures_dir / "styling.qgz"), str(tmp_path / level), DocOptions(detail=level, formats=("markdown",))
+        )
         sizes[level] = len((tmp_path / level / "report.md").read_text(encoding="utf-8"))
     assert sizes["summary"] < sizes["standard"] < sizes["full"]
 
@@ -115,3 +117,28 @@ def test_resources(outputs):
     assert fonts and all("installed" in f and f["used_by"] for f in fonts)
     sources = json.loads((outputs["sources"] / "project.json").read_text(encoding="utf-8"))
     assert any(p["section"] == "resources" and "javascript" in p["message"] for p in sources["problems"])
+
+
+def test_pdf_contents_links_and_page_breaks(outputs):
+    """The PDF contents list chapters, layers and layouts, each a link to a named destination;
+    every chapter and every layer starts a new page."""
+    md = (outputs["styling"] / "report.md").read_text(encoding="utf-8")
+    chapters = re.findall(r"^## \d+\. ", md, re.M)
+    layers = re.findall(r"^### \d+\.\d+ ", md, re.M)
+    data = (outputs["styling"] / "report.pdf").read_bytes()
+    links = len(re.findall(rb"/Subtype /Link", data))
+    assert links >= len(chapters) + len(layers) - 2  # every contents entry (H2 and H3) is a link
+    assert b"/Dests" in data
+    pages = len(re.findall(rb"/Type\s*/Page[^s]", data))
+    assert pages >= 1 + len(chapters) + len(re.findall(r"^### 5\.\d+ ", md, re.M))
+
+
+def test_elevation_and_other_settings(outputs):
+    md = (outputs["styling"] / "report.md").read_text(encoding="utf-8")
+    layers = re.findall(r"^### 5\.\d+ ", md, re.M)
+    assert len(re.findall(r"^#### 5\.\d+\.\d+ Elevation$", md, re.M)) == len(layers)
+    assert len(re.findall(r"^#### 5\.\d+\.\d+ Other layer settings$", md, re.M)) == len(layers)
+    assert "All elevation settings are at QGIS defaults" in md
+    for name in outputs:
+        cov = json.loads((outputs[name] / "project.json").read_text(encoding="utf-8"))["coverage"]
+        assert cov["percent_claimed"] >= 95, (name, cov["percent_claimed"])

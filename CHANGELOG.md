@@ -20,6 +20,23 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-12: Dialog screenshots are placed where their settings are documented: Symbology,
+  Labels, Fields, Joins and Elevation pages in those sections of each layer, every other Layer
+  Properties page under "Other layer settings" with that page's settings, Project Properties
+  pages in the project settings, relations and variables chapters, and the Layout Designer and
+  each item's panel next to that item. Each has a caption naming the dialog and page. The
+  appendix keeps the environment, a table of pages not pictured, and anything unplaced.
+- 2026-11-12: Per layer, an **Elevation** section and **Other layer settings** (rendering,
+  temporal, display, actions, attributes form, attribute table, legend, digitizing, dependencies,
+  auxiliary storage, variables and custom properties, layer capabilities), and for the project
+  **Other project settings** (snapping, display settings, other properties). Only settings that
+  differ from a new layer or project in QGIS are listed, each with the QGIS default. Coverage on
+  the Wildlands print project: 67.3 % to 99.2 %; on the fixtures 95 % or more.
+- 2026-11-12: Headings are numbered from the chapter down (5.1, 5.1.3, 5.1.6.2), up to level 5;
+  layout items are level-5 headings.
+- 2026-11-12: PDF: a contents table of chapters, layers and layouts with page numbers, each entry
+  a link to its section; every chapter and every layer starts on a new page.
+
 - 2026-11-11: Option `paths` (dialog "Paths", Processing "Paths in the documentation"):
   `relative` (default) or `absolute`. Relative: every path relative to the project folder, the
   project file named only; a final pass also rewrites the absolute paths QGIS stores itself
@@ -109,6 +126,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- 2026-11-12: Screenshots could show secrets in list and table pages (a variable's value, a URL
+  in an action): masking covered text fields only. Rows of lists, trees and tables that show a
+  path, address or login, or name a secret, are now blacked out whole; a view that cannot be
+  inspected is blacked out entirely.
+- 2026-11-12: A URL such as `javascript:...` was treated as a relative file path (`./javascript:`).
+- 2026-11-12: HTML text now escapes quotes as well (defence in depth).
 - 2026-11-11: `make lint` now runs the same pinned ruff and the same `ruff format --check` as CI.
   It had passed a README change that CI then rejected.
 - 2026-11-11: A project file was always reported as having "unsaved changes" (coverage note).

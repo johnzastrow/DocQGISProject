@@ -19,6 +19,7 @@ from qgis.PyQt.QtXml import QDomDocument
 
 from ..xmlwalk import attributes, redact_dom
 from .common import safe_message
+from .layer_settings import LAYER_SECTIONS, PROJECT_SECTIONS
 
 MAX_PROJECT_XML_BYTES = 200 * 1024 * 1024
 MAX_SAMPLES = 3
@@ -70,6 +71,11 @@ SUBTREE_CLAIMS = {
     f"{ML}/map-layer-style-manager",
     # layouts (collectors/layouts.py)
     "Layouts",
+    # elevation, behaviour and project settings compared with QGIS defaults (collectors/layer_settings.py)
+    *(f"{ML}/{tag}" for tag in LAYER_SECTIONS),
+    *PROJECT_SECTIONS,
+    "main-annotation-layer",  # summarised (number of items)
+    "legend",  # the legacy legend tree QGIS writes alongside layer-tree-group (layer tree chapter)
 }
 ELEMENT_CLAIMS = {"", "projectlayers", ML, "properties"}
 

@@ -161,6 +161,23 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
     "Wildlands Trail Map" page renders 0.000 % different at 40 dpi.
   - Owner's first click test found no screenshots: they documented a project file (screenshots need the
     open project). The dialog now says so.
+  - Owner's GUI run (open project, screenshots "all"): 656 files, 551 screenshots, coverage 67.3 %. Asked
+    for: screenshots woven into the settings, elevation and layer-behaviour chapters, clickable PDF contents,
+    proper headings, each layer on a new PDF page. Done 2026-11-12:
+    - `core/collectors/layer_settings.py`: writeLayerXml of each layer vs a new layer of the same kind
+      (memory vector of the same geometry, gdal raster with no source; DEFAULT_OVERRIDES for what the empty
+      raster cannot show); project settings vs a new project written to a temp folder. Ids, GUIDs and the
+      random elevation-profile symbol colours are noise; per-layer snapping entries are one summary row.
+      Wildlands print: 99.2 %.
+    - `render/md_out.py`: `_Doc.heading` auto-numbers levels 3 to 5; `_Shots` hands each screenshot out
+      once (`doc.figures(kind, pages, target, target_id)`); leftovers go to the appendix. Page titles are
+      matched in English: with another QGIS language they all land under "Other layer settings".
+    - `render/pdf_out.py`: Qt writes internal PDF links and named destinations for `<a href="#id">` and
+      heading ids even with the custom drawContents page loop (verified: 47 of 47 links resolve to the right
+      pages). Two passes: placeholders "000", then real page numbers. `page-break-before:always` on every H2
+      and on the H3s of the Layers chapter.
+    - PyQt6: `columnCount()`/`hasChildren()` are private on list models; `visualRect()` is protected on
+      QHeaderView. Screenshot masking now covers item views row by row and fails closed.
 - Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
   smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
   version 0.1.0, tag, plugins.qgis.org upload).

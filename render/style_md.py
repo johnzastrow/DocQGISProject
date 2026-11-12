@@ -464,6 +464,9 @@ def style_chapter(doc, lyr):
     renderer = style.get("renderer")
     where = "Layer Properties > Symbology"
     doc.heading(4, "Symbology")
+    figures = getattr(doc, "figures", None)  # dialog screenshots, when the run took them
+    if figures:
+        figures("layer", ("Symbology",), target_id=lyr.id)
     if lyr.layer_type == "Raster":
         raster_renderer(doc, renderer, style.get("legend") or [], where)
     elif renderer:
@@ -483,6 +486,8 @@ def style_chapter(doc, lyr):
         doc.para("No renderer.")
     if style.get("labeling"):
         doc.heading(4, "Labels")
+        if figures:
+            figures("layer", ("Labels",), target_id=lyr.id)
         labels(doc, style["labeling"])
     named = style.get("named_styles") or {}
     if len(named.get("all") or []) > 1:

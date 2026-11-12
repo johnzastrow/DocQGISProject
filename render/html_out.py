@@ -34,7 +34,7 @@ nav.toc ul{list-style:none;padding-left:.8rem;margin:.2rem 0}
 nav.toc a{color:var(--accent);text-decoration:none}
 main{flex:1;min-width:0}
 h1{font-size:1.7rem}h2{border-bottom:2px solid var(--line);padding-bottom:.2rem;margin-top:2.2rem}
-h3{display:inline;font-size:1.15rem}h4{margin-bottom:.3rem}
+h3{display:inline;font-size:1.15rem}h4{margin-bottom:.3rem}h5{font-size:.95rem;margin:.9rem 0 .3rem}
 details{border:1px solid var(--line);border-radius:6px;padding:.4rem .8rem;margin:.8rem 0}
 summary{cursor:pointer}
 .tw{overflow-x:auto}
@@ -74,7 +74,7 @@ def _slug(text, used):
 def _flush(buf, out):
     if buf:
         # Markdown text may hold entities md_text produced (&lt; &amp;): decode, then escape all.
-        out.append(html.escape(html.unescape("".join(buf)), quote=False))
+        out.append(html.escape(html.unescape("".join(buf))))  # quotes too: defence in depth
         buf.clear()
 
 
@@ -87,7 +87,7 @@ def inline(text, image):
         c = text[i]
         if c == "\\" and i + 1 < n and text[i + 1] in _MD_PUNCT:
             # A backslash escape is a literal character (escape &, <, > right away).
-            buf.append(html.escape(text[i + 1], quote=False) if text[i + 1] in "&<>" else text[i + 1])
+            buf.append(html.escape(text[i + 1]) if text[i + 1] in "&<>" else text[i + 1])
             i += 2
             continue
         if c == "`":
@@ -99,7 +99,7 @@ def inline(text, image):
                 code = text[i + len(fence) : end]
                 if code.startswith(" ") and code.endswith(" ") and len(code) > 1:
                     code = code[1:-1]
-                out.append("<code>" + html.escape(code.replace("\\|", "|"), quote=False) + "</code>")
+                out.append("<code>" + html.escape(code.replace("\\|", "|")) + "</code>")
                 i = end + len(fence)
                 continue
         if c == "!" and text.startswith("![", i):
@@ -158,7 +158,7 @@ def markdown_to_html(md, image, collapsible=True):
         if not line.strip():
             i += 1
             continue
-        m = re.match(r"^(#{1,4}) (.*)$", line)
+        m = re.match(r"^(#{1,5}) (.*)$", line)
         if m:
             level, text = len(m.group(1)), m.group(2)
             plain = html.unescape(re.sub(r"\\(.)", r"\1", text))

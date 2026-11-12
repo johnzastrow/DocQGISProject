@@ -22,6 +22,8 @@ DIR = "/home/u/maps/project/qgis"
         ("/srv/elsewhere/b.tif", "../../../../../srv/elsewhere/b.tif", "/srv/elsewhere/b.tif"),
         ("https://example.org/a.png", "https://example.org/a.png", "https://example.org/a.png"),
         ("base64:AAAA", "base64:AAAA", "base64:AAAA"),
+        ("javascript:alert(4)", "javascript:alert(4)", "javascript:alert(4)"),  # a scheme, not a file
+        ("postgres://h/db", "postgres://h/db", "postgres://h/db"),
         ("", "", ""),
     ],
 )

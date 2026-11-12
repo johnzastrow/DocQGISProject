@@ -240,9 +240,19 @@ def test_code_is_stripped(documented, fixtures_dir):
 @pytest.mark.parametrize(
     "mutate,match",
     [
-        (lambda rb: rb.update(project_xml=rb["project_xml"].replace("@docqgisproject:source/s1", "@docqgisproject:source/s99")), "undeclared"),
+        (
+            lambda rb: rb.update(
+                project_xml=rb["project_xml"].replace("@docqgisproject:source/s1", "@docqgisproject:source/s99")
+            ),
+            "undeclared",
+        ),
         (lambda rb: rb["resources"].append(dict(rb["resources"][0], name="../../escape.svg")), "plain file name"),
-        (lambda rb: rb.update(project_xml='<!DOCTYPE qgis [<!ENTITY x SYSTEM "file:///etc/passwd">]><qgis>&x;</qgis>'), "DOCTYPE"),
+        (
+            lambda rb: rb.update(
+                project_xml='<!DOCTYPE qgis [<!ENTITY x SYSTEM "file:///etc/passwd">]><qgis>&x;</qgis>'
+            ),
+            "DOCTYPE",
+        ),
         (lambda rb: rb["resources"][0].update(sha256="0" * 64), "does not match"),
     ],
 )

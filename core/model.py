@@ -99,6 +99,9 @@ class LayerDoc:
     raster: Optional[dict] = None  # band_count, width, height, data_type, pixel_size
     style: Optional[dict] = None  # renderer, labeling, legend, qml, named_styles (collectors/styling.py)
     thumbnail: Optional[str] = None  # image of the layer alone (collectors/maps.py)
+    # Differences from a new layer, by dialog page (collectors/layer_settings.py)
+    settings: dict = field(default_factory=dict)  # page -> [{section, setting, value, default}]
+    elevation: dict = field(default_factory=dict)  # {"rows": [...], "profile_colours": [...]}
 
 
 @dataclass
@@ -194,6 +197,9 @@ class DocModel:
     resources: dict = field(default_factory=dict)  # fonts and external files (collectors/fonts_files.py)
     coverage: dict = field(default_factory=dict)  # share of project XML explained (collectors/tier_b.py)
     tier_b: list = field(default_factory=list)  # unexplained XML paths, detail == "full" only
+    # Project settings that differ from a new project, by dialog page (collectors/layer_settings.py)
+    project_settings: dict = field(default_factory=dict)
+    project_settings_summary: dict = field(default_factory=dict)
     # Dialog screenshots (gui/screenshots.py), GUI runs only: {"environment": {...}, "items": [...]}
     screenshots: dict = field(default_factory=dict)
     rebuild: Optional[dict] = None  # lossless payload (collectors/rebuild_payload.py), JSON output only

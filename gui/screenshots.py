@@ -20,10 +20,12 @@ import platform
 import re
 
 from qgis.core import Qgis, QgsApplication, QgsLayoutItem, QgsLayoutItemPage, QgsSettings
-from qgis.PyQt.QtCore import QCoreApplication, QElapsedTimer, QPoint, QRect, QTimer
+from qgis.PyQt.QtCore import QCoreApplication, QElapsedTimer, QModelIndex, QPoint, QRect, QSize, QTimer
 from qgis.PyQt.QtGui import QColor, QPainter
 from qgis.PyQt.QtWidgets import (
     QAbstractButton,
+    QAbstractItemView,
+    QHeaderView,
     QApplication,
     QComboBox,
     QDockWidget,
@@ -47,6 +49,7 @@ SENSITIVE_TEXT_RE = re.compile(
 )
 TEXT_WIDGETS = (QLineEdit, QPlainTextEdit, QTextEdit, QLabel, QComboBox, QAbstractButton)
 MAX_PAGES = 60
+MAX_VIEW_CELLS = 20000
 MAX_LAYOUT_ITEMS = 30
 MODAL_WAIT_MS = 5000
 
@@ -72,15 +75,74 @@ def _widget_text(w):
     return ""
 
 
+def _sensitive(text):
+    """A path, URL or login, or a name that says it holds a secret (service_token, api_key)."""
+    from ..core.redact import secret_name_kind, sensitive_kind
+
+    for line in (text or "").splitlines()[:200]:
+        line = line.strip()
+        if line and (SENSITIVE_TEXT_RE.search(line) or sensitive_kind(line) or secret_name_kind(line)):
+            return True
+    return False
+
+
+def _columns(model, parent):
+    """Column count; list models (QListWidget) make columnCount private in PyQt6: one column."""
+    try:
+        return max(1, model.columnCount(parent))
+    except TypeError:
+        return 1
+
+
+def _view_rects(view, root):
+    """Rows of a list, tree or table view that show anything sensitive. The whole row is masked,
+    so a secret value next to its name (a variable, an action) is covered too."""
+    model = view.model()
+    if model is None:
+        return []
+    rects, budget = [], [MAX_VIEW_CELLS]
+
+    def walk(parent, depth):
+        for row in range(model.rowCount(parent)):
+            if budget[0] <= 0:
+                return
+            cols = _columns(model, parent)
+            budget[0] -= cols
+            indexes = [model.index(row, c, parent) for c in range(cols)]
+            if any(_sensitive(str(ix.data() or "")) for ix in indexes):
+                row_rect = QRect()
+                for ix in indexes:
+                    r = view.visualRect(ix)
+                    if r.isValid():
+                        row_rect = row_rect.united(r)
+                if row_rect.isValid():
+                    # The full width of the visible area, at the row's height (viewport -> root).
+                    vp = view.viewport()
+                    top_left = vp.mapTo(root, QPoint(0, row_rect.top()))
+                    rects.append(QRect(top_left, QSize(vp.width(), row_rect.height())))
+            if depth < 4 and model.rowCount(indexes[0]) > 0:  # hasChildren() is private on list models
+                walk(indexes[0], depth + 1)
+
+    walk(QModelIndex(), 0)
+    return rects
+
+
 def _sensitive_rects(root):
-    """Rectangles (in root coordinates) of visible text widgets showing a path, URL or login."""
+    """Rectangles (in root coordinates) of visible widgets showing a path, URL or login."""
     rects = []
+    for view in root.findChildren(QAbstractItemView):
+        if isinstance(view, QHeaderView) or not view.isVisibleTo(root):
+            continue  # headers show column titles, not data
+        try:
+            rects += _view_rects(view, root)
+        except (RuntimeError, TypeError):
+            # A view this code cannot inspect is blacked out whole: fail closed, never leak.
+            rects.append(QRect(view.mapTo(root, QPoint(0, 0)), view.size()))
     for cls in TEXT_WIDGETS:
         for w in root.findChildren(cls):
             if not w.isVisibleTo(root):
                 continue
-            text = _widget_text(w) or ""
-            if not text or not any(SENSITIVE_TEXT_RE.search(line.strip()) for line in text.splitlines()[:200]):
+            if not _sensitive(_widget_text(w) or ""):
                 continue
             top_left = w.mapTo(root, QPoint(0, 0))
             rects.append(QRect(top_left, w.size()))
