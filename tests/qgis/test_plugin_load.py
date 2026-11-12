@@ -16,8 +16,21 @@ class _StubIface:
         from qgis.PyQt.QtWidgets import QMainWindow, QMenu
 
         self._main = QMainWindow()
+        from qgis.PyQt.QtWidgets import QToolBar
+
         self._project_menu = QMenu("Project", self._main)
+        self._toolbar = QToolBar("Project Toolbar", self._main)
+        self._plugin_menus = {}
         self._bar = _MessageBar()
+
+    def fileToolBar(self):  # noqa: N802
+        return self._toolbar
+
+    def addPluginToMenu(self, name, action):  # noqa: N802
+        self._plugin_menus.setdefault(name, []).append(action)
+
+    def removePluginMenu(self, name, action):  # noqa: N802
+        self._plugin_menus.get(name, []).remove(action)
 
     def mainWindow(self):  # noqa: N802
         return self._main
@@ -45,6 +58,9 @@ def test_load_menu_provider_unload(qgis_app, plugin_pkg):
 
     actions = [a for a in iface.projectMenu().actions() if a.objectName() == "DocQGISProjectDocumentAction"]
     assert len(actions) == 1
+    # The same action is a Project-toolbar button and a Plugins-menu entry.
+    assert actions[0] in iface.fileToolBar().actions()
+    assert iface._plugin_menus.get("&DocQGISProject") == [actions[0]]
     assert actions[0].toolTip()
     assert not actions[0].icon().isNull()
 
@@ -62,3 +78,4 @@ def test_load_menu_provider_unload(qgis_app, plugin_pkg):
     plugin.unload()
     assert registry.providerById("docqgisproject") is None
     assert not [a for a in iface.projectMenu().actions() if a.objectName() == "DocQGISProjectDocumentAction"]
+    assert not iface.fileToolBar().actions() and not iface._plugin_menus["&DocQGISProject"]

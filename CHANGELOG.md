@@ -20,6 +20,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- 2026-11-12: Start button on the Project toolbar (next to New, Open and Save) and a
+  *Plugins > DocQGISProject* menu entry, besides *Project > Document Project...*.
 - 2026-11-12: Dialog screenshots are placed where their settings are documented: Symbology,
   Labels, Fields, Joins and Elevation pages in those sections of each layer, every other Layer
   Properties page under "Other layer settings" with that page's settings, Project Properties

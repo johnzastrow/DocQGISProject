@@ -22,7 +22,8 @@ What one run writes:
 
 ## Using it
 
-**Dialog:** *Project > Document Project...* Choose the open project or a project file, an output
+**Dialog:** the eye button on the Project toolbar, *Project > Document Project...* or
+*Plugins > DocQGISProject > Document Project...* Choose the open project or a project file, an output
 folder, formats and options, then *Document*. Progress, *Cancel run* and *Open report* are in the
 dialog; every option has a tooltip and is remembered. Dialog screenshots (off by default) are only
 available here, only for the open project: each QGIS dialog opens briefly and closes with Cancel,

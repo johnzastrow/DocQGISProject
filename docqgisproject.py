@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Plugin class: Project menu entry and Processing provider registration."""
+"""Plugin class: the Document Project action and Processing provider registration.
+
+One action, three places: Project > Document Project..., a button on the Project toolbar (next
+to New, Open and Save: documenting is a whole-project action), and Plugins > DocQGISProject.
+"""
 
 import os
 
@@ -11,6 +15,7 @@ from qgis.PyQt.QtWidgets import QAction
 from .processing_provider.provider import DocQGISProjectProvider
 
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+MENU = "&DocQGISProject"
 ICON_PATH = os.path.join(PLUGIN_DIR, "icons", "icon.svg")
 
 
@@ -26,6 +31,7 @@ class DocQGISProjectPlugin:
         self.iface = iface
         self.action = None
         self.provider = None
+        self.toolbar = None
 
     # QGIS calls initProcessing() for plugins with hasProcessingProvider=yes
     # (also in qgis_process, where there is no GUI). initGui() calls it too, so
@@ -45,10 +51,19 @@ class DocQGISProjectPlugin:
         self.action.setStatusTip(self.action.toolTip())
         self.action.triggered.connect(self.run)
         self.iface.projectMenu().addAction(self.action)
+        self.toolbar = self.iface.fileToolBar() if hasattr(self.iface, "fileToolBar") else None
+        if self.toolbar is not None:
+            self.toolbar.addAction(self.action)
+        if hasattr(self.iface, "addPluginToMenu"):
+            self.iface.addPluginToMenu(MENU, self.action)
 
     def unload(self):
         if self.action is not None:
             self.iface.projectMenu().removeAction(self.action)
+            if getattr(self, "toolbar", None) is not None:
+                self.toolbar.removeAction(self.action)
+            if hasattr(self.iface, "removePluginMenu"):
+                self.iface.removePluginMenu(MENU, self.action)
             self.action.deleteLater()
             self.action = None
         if self.provider is not None:
