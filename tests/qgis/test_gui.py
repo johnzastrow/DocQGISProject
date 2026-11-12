@@ -499,3 +499,28 @@ def test_uninspectable_view_is_blacked_out(qgis_app, plugin_pkg, monkeypatch):
     c = lst.geometry().center()
     assert image.pixelColor(int(c.x() * ratio), int(c.y() * ratio)).getRgb()[:3] == (40, 40, 40)
     w.close()
+
+
+def test_modal_shown_without_exec_is_handled(qgis_app, plugin_pkg):
+    """Raster Layer Properties: QGIS calls setModal(True) + show() and returns immediately."""
+    from qgis.PyQt.QtWidgets import QApplication, QDialog
+
+    from DocQGISProject.gui.screenshots import grab_modal
+
+    holder = {}
+
+    def open_fn():
+        from qgis.PyQt.QtCore import QTimer
+
+        d = QDialog()
+        d.setModal(True)
+        d.resize(200, 100)
+        holder["d"] = d
+        # Returns at once, like QgisApp::showLayerProperties for rasters; the dialog appears a
+        # little later (a raster dialog takes time to build its pages).
+        QTimer.singleShot(400, d.show)
+
+    result = grab_modal(open_fn, lambda dialog: "grabbed")
+    assert result == "grabbed"
+    assert holder["d"].result() == 0 and not holder["d"].isVisible()
+    assert QApplication.activeModalWidget() is None

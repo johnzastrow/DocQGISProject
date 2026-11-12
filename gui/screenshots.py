@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Dialog screenshots (docs/DESIGN.md section 6b). GUI runs only, opt-in, best effort.
 
-How: each QGIS dialog is opened through the QGIS interface, which shows it modally and blocks.
+How: each QGIS dialog is opened through the QGIS interface, which shows it modally (and blocks,
+except raster Layer Properties, which QGIS shows modally with show() and returns at once).
 A timer armed just before the call finds the new modal dialog, steps through its pages, grabs
 each one with QWidget.grab() (the widget only, never the desktop), and closes it with reject()
 so nothing is applied. The reject is in a `finally`: an error can never leave QGIS stuck behind
@@ -206,7 +207,10 @@ def grab_modal(open_fn, handle_fn):
 
     QTimer.singleShot(0, poll)
     open_fn()
-    if not state["found"]:
+    # Most QGIS dialogs block in exec() until closed, so the poll has already run by now. A raster
+    # Layer Properties dialog is modal but shown with show(), and open_fn returns at once: keep
+    # the events flowing until the poll has found and closed it, or the wait limit has passed.
+    while not state["found"] and clock.elapsed() < MODAL_WAIT_MS + 500:
         _process_events(50)
     if state["error"] is not None:
         raise state["error"]

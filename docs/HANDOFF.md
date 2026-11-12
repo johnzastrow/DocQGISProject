@@ -178,6 +178,14 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
       and on the H3s of the Layers chapter.
     - PyQt6: `columnCount()`/`hasChildren()` are private on list models; `visualRect()` is protected on
       QHeaderView. Screenshot masking now covers item views row by row and fails closed.
+  - GUI-run harness (real QGIS under xvfb-run, `qgis --code script.py --profiles-path <tmp>`): Project
+    Properties opens with exec(), is detected and closes. Vector Layer Properties is detected and closes
+    (also via the real Cancel button), but `iface.showLayerProperties()` never returns in this harness: the
+    event-loop depth keeps growing after the dialog closes (QThread.loopLevel 6 -> 9, 10, 11...). Same with
+    the basic fixture and with xfwm4 as window manager. QGIS's own code (qgisapp.cpp, vector branch: exec(),
+    then delete) has no loop there, and the owner's desktop run took 551 screenshots, so this is a harness
+    artifact; not resolved. ptrace is blocked (yama ptrace_scope=1), so no native stack. Raster Layer
+    Properties uses setModal(true) + show() and returns at once: grab_modal now waits for it.
 - Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
   smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
   version 0.1.0, tag, plugins.qgis.org upload).

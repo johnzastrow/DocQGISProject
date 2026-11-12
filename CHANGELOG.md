@@ -128,6 +128,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- 2026-11-12: Raster Layer Properties: QGIS shows that dialog modally with show() and returns at once
+  (not exec()), so the screenshot code could stop waiting before the dialog appeared and leave it
+  open. It now keeps waiting until the dialog is found and closed, or the wait limit passes.
 - 2026-11-12: Screenshots could show secrets in list and table pages (a variable's value, a URL
   in an action): masking covered text fields only. Rows of lists, trees and tables that show a
   path, address or login, or name a secret, are now blacked out whole; a view that cannot be
