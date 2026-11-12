@@ -32,6 +32,7 @@ from .collectors.rebuild_payload import collect_rebuild
 from .collectors.project import collect_bookmarks, collect_project, collect_relations, collect_themes, collect_variables
 from .model import DocModel
 from .options import DocOptions
+from .paths import PathStyle, restyle
 from .safe_paths import OutputFolder
 
 PROJECT_SUFFIXES = (".qgz", ".qgs")
@@ -101,7 +102,9 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None, unsa
 
     if unsaved is None:
         unsaved = project.isDirty()  # before collectors resolve layers (which marks the project dirty)
-    step("project", collect_project, project, model)
+    project_dir = os.path.dirname(os.path.abspath(project.fileName())) if project.fileName() else None
+    paths = PathStyle(project_dir, options.paths)
+    step("project", collect_project, project, model, paths)
     model.layer_tree = step("layer tree", collect_tree, project)
     if feedback is not None:
         feedback.setProgress(10)
@@ -116,7 +119,7 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None, unsa
     if options.images:
         image = step("overview", project_overview, project, options.image_dpi)
         model.project.overview_image = sink.add_png("images/project_overview.png", image) if image else None
-    step("resources", collect_resources, model, os.path.dirname(project.fileName()) if project.fileName() else None)
+    step("resources", collect_resources, model, project_dir, paths)
     if options.screenshots != "none":
         if screenshotter is None:
             model.add_problem(
@@ -129,6 +132,12 @@ def collect(project, options, feedback=None, sink=None, screenshotter=None, unsa
     step("coverage", collect_tier_b, project, model, options, unsaved)
     if "json" in options.formats:
         step("rebuild", collect_rebuild, project, model, options)
+    if options.paths == "relative":
+        # Last pass: QGIS hands out resolved absolute paths in places the collectors do not
+        # convert one by one (symbol-layer SVG paths, Tier B samples, exported QML and QPT).
+        # Rewrite every one that lies under the project folder or its parents.
+        restyle(model, paths)
+        sink.restyle_text(paths.text)
     if not options.redact:
         model.add_problem("warning", "security", "Redaction was turned off: this output may contain credentials.")
     if sink.dropped:

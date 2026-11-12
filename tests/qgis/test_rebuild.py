@@ -98,8 +98,11 @@ def test_round_trip_xml(documented, fixtures_dir, name):
     files_dir = f"./{target.stem}_files/"
     for la, lb in zip(a, b):
         if la != lb:
-            # Allow-list: embedded files are repointed at the rebuilt project's own folder.
-            assert la.replace("./assets/", files_dir) == lb, (la[:200], lb[:200])
+            # Allow-list: embedded files are repointed at the rebuilt project's own folder, and
+            # (paths="relative", the default) absolute paths QGIS stored itself, such as an atlas
+            # coverageLayerSource, are written relative to the project folder.
+            expected = la.replace("./assets/", files_dir).replace(str(fixtures_dir) + "/", "./")
+            assert expected == lb, (la[:200], lb[:200])
     if name == "layout":
         assert (fixtures_dir / f"{target.stem}_files" / "north.svg").is_file()
 

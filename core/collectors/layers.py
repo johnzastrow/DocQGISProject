@@ -17,6 +17,7 @@ from qgis.core import (
 from ..model import FieldDoc, JoinDoc, LayerDoc, SourceDoc, TreeNode
 from ..redact import redact_mapping, redact_text
 from ..safe_paths import sanitize_name
+from ..paths import PathStyle
 from .common import (
     crs_doc,
     decode_source,
@@ -25,7 +26,6 @@ from .common import (
     is_remote,
     plain_text,
     rect_list,
-    relative_to,
     safe_message,
 )
 
@@ -84,15 +84,16 @@ def ordered_layers(project):
 # --------------------------------------------------------------------------- sources
 
 
-def source_doc(layer, project_dir, redact=True):
+def source_doc(layer, project_dir, redact=True, paths=None):
     provider = layer.providerType() or ""
     raw = layer.source() or ""
     parts = decode_source(provider, raw)
     doc = SourceDoc(provider=provider, remote=is_remote(provider, raw, parts))
     path = parts.get("path")
     if isinstance(path, str) and path and not doc.remote:
-        doc.path = os.path.abspath(path)
-        doc.path_relative = relative_to(doc.path, project_dir)
+        full = os.path.abspath(path)
+        doc.path = paths.show(full) if paths else full  # as the `paths` option asks
+        doc.path_relative = PathStyle(project_dir, "relative").show(full) if project_dir else None
     if redact:
         doc.uri, k1 = redact_text(raw)
         doc.parts, k2 = redact_mapping(parts)
@@ -180,7 +181,7 @@ def collect_layer(layer, project, model, options, feedback=None, sink=None, inde
     project_dir = os.path.dirname(project.fileName()) if project.fileName() else None
     doc = LayerDoc(id=layer.id(), name=layer.name(), layer_type=enum_name(layer.type()))
     try:
-        doc.source = source_doc(layer, project_dir, redact=options.redact)
+        doc.source = source_doc(layer, project_dir, redact=options.redact, paths=PathStyle(project_dir, options.paths))
         model.count_redactions(doc.source.redactions)
 
         # Resolve the data only when asked, and remote sources only when explicitly allowed.

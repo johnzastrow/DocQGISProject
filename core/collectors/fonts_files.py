@@ -79,7 +79,7 @@ def resolve_path(path, project_dir):
     return os.path.normpath(os.path.join(project_dir or "", path))
 
 
-def collect_resources(model, project_dir):
+def collect_resources(model, project_dir, paths=None):
     fonts, files = {}, {}
     for lyr in model.layers:
         style = lyr.style or {}
@@ -112,10 +112,11 @@ def collect_resources(model, project_dir):
     for path, users in sorted(files.items()):
         local = resolve_path(path, project_dir)
         exists = os.path.exists(local) if local else None
-        model.resources["files"].append({"path": path, "exists": exists, "used_by": sorted(users)})
+        shown = paths.show(path) if paths else path  # as the `paths` option asks
+        model.resources["files"].append({"path": shown, "exists": exists, "used_by": sorted(users)})
         if exists is False:
             model.add_problem(
-                "warning", "resources", f"File {path} (used by {', '.join(sorted(users))}) was not found."
+                "warning", "resources", f"File {shown} (used by {', '.join(sorted(users))}) was not found."
             )
     for f in model.resources["fonts"]:
         if not f["installed"]:

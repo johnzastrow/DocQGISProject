@@ -55,10 +55,14 @@ Options: `formats` (json, markdown, html, pdf; default all), `detail` (summary, 
 on), `load_data` (open local data for counts and extents; default on), `redact` (default on),
 `include_network_layers` (default off: web services and databases are never contacted), `overwrite`
 (default off: files this plugin did not write are never replaced), `screenshots` and
-`screenshot_layers` (dialog only).
+`screenshot_layers` (dialog only), and `paths`: `"relative"` (default) writes every path relative
+to the project folder (`./`, `../`), so no home-folder path appears in any output and the outputs
+stay valid when the whole folder moves; `"absolute"` writes full paths everywhere, including the
+project file. This covers the reports, the JSON, the QML and QPT files and the rebuild data.
 
 The rebuilder treats the JSON as untrusted: it checks it in full first, removes macros and other
-Python code, refuses absolute data paths you have not mapped, and never overwrites a file.
+Python code, refuses absolute data paths you have not mapped (pass `allow_absolute=True` for a full-path JSON
+you trust), and never overwrites a file.
 
 Requirements: QGIS 4.0 or later (Qt 6). Licence: GPL-2.0-or-later.
 

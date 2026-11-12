@@ -68,14 +68,10 @@ def _layer_names(model):
 
 
 def _source_location(lyr):
-    """Where the data are, for a person: relative path when possible, else the redacted URI."""
+    """Where the data are, for a person: the path in the style the `paths` option chose, else
+    the redacted URI."""
     src = lyr.source
-    if src.path_relative:
-        loc = md_code(src.path_relative)
-    elif src.path:
-        loc = md_code(src.path)
-    else:
-        loc = md_code(src.uri)
+    loc = md_code(src.path) if src.path else md_code(src.uri)
     table = src.parts.get("layerName") if isinstance(src.parts, dict) else None
     if table:
         loc += f", layer {md_code(table)}"
@@ -106,7 +102,7 @@ def _overview(doc, model):
         ["Item", "Value"],
         [
             ["Title", md_text(p.title) or "Not set"],
-            ["Project file", md_code(p.file_name) or "Not saved"],
+            ["Project file", md_code(p.file_path or p.file_name) or "Not saved"],
             ["Saved with QGIS", md_text(p.qgis_version_saved) or "Unknown"],
             ["Last saved", md_text(p.saved_at) or "Unknown"],
             ["Project CRS", _crs_text(crs)],
@@ -378,11 +374,11 @@ def _layers(doc, model):
 
         if isinstance(src.parts, dict) and len(src.parts) > 1 and doc.detail != "summary":
             doc.heading(4, "Source parameters")
-            # Show the project-relative path instead of an absolute one when there is one.
+            # The path in the style the `paths` option chose (relative or full).
             part_rows = [
                 [
                     md_code(k),
-                    md_code(src.path_relative) if k == "path" and src.path_relative else fmt_redacted_or_text(v),
+                    md_code(src.path) if k == "path" and src.path else fmt_redacted_or_text(v),
                 ]
                 for k, v in sorted(src.parts.items())
                 if v not in (None, "", [], {})
@@ -614,6 +610,9 @@ def _rebuild(doc, model):
         + "If the data have moved, pass "
         + md_code("source_map")
         + ", which maps an old folder to a new one. "
+        + "If this JSON was written with full paths and the data are still there, pass "
+        + md_code("allow_absolute=True")
+        + " instead. "
         + "For a source that needs a login, pass "
         + md_code("auth_map")
         + ", which maps the source (such as s3) to a QGIS authentication configuration. "

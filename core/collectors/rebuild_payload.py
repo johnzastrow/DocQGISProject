@@ -24,6 +24,7 @@ import os
 from qgis.core import QgsProviderRegistry
 from qgis.PyQt.QtXml import QDomDocument
 
+from ..paths import PathStyle
 from ..safe_paths import sanitize_name
 from ..schema import (
     MAX_RESOURCE_BYTES,
@@ -205,6 +206,42 @@ def _embed_resources(doc, project_dir, model):
     return resources
 
 
+def _decode(provider, uri):
+    """decodeUri, or None for a provider that cannot decode (left as QGIS stored it)."""
+    try:
+        return QgsProviderRegistry.instance().decodeUri(provider, uri) or {}
+    except Exception:
+        return None
+
+
+def _absolute_paths(doc, sources, resources, paths):
+    """Full paths in the payload (option paths="absolute"): file sources and the attribute
+    values that point at embedded files. The data-source markers in the XML are unchanged."""
+    for src in sources:
+        info = src.get("file")
+        if src["kind"] != "file" or not info or not info.get("path") or os.path.isabs(info["path"]):
+            continue
+        full = paths.absolute(info["path"])
+        parts = _decode(src["provider"], src["uri"])
+        if parts is None or parts.get("path") != info["path"]:  # leave it as QGIS stored it
+            continue
+        parts["path"] = full
+        src["uri"] = QgsProviderRegistry.instance().encodeUri(src["provider"], parts)
+        info["path"] = full
+    refs = {}
+    for res in resources:
+        if not os.path.isabs(res["ref"]):
+            refs[res["ref"]] = paths.absolute(res["ref"])
+            res["ref"] = refs[res["ref"]]
+    if refs:
+        for el in _elements(doc.documentElement()):
+            attrs = el.attributes()
+            for j in range(attrs.count()):
+                attr = attrs.item(j).toAttr()
+                if attr.value() in refs:
+                    attr.setValue(refs[attr.value()])
+
+
 def collect_rebuild(project, model, options):
     """Fill model.rebuild from the saved project file."""
     path = project.fileName()
@@ -226,6 +263,10 @@ def collect_rebuild(project, model, options):
     project_dir = os.path.dirname(os.path.abspath(path))
     sources = _parameterise_sources(doc, project_dir, options.redact)
     resources = _embed_resources(doc, project_dir, model) if options.embed_resources else []
+    if options.paths == "absolute":
+        _absolute_paths(doc, sources, resources, PathStyle(project_dir, "absolute"))
+    # Relative paths need no step here: the runner's final pass rewrites every absolute path
+    # in the model, the project XML and the sources table included.
     notes = []
     if not options.embed_resources:
         notes.append("SVG and image files were not embedded (embed_resources off); a rebuild needs them supplied.")

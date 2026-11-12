@@ -17,13 +17,16 @@ def _iso(dt):
     return dt.toString(Qt.DateFormat.ISODate)
 
 
-def collect_project(project, model):
-    """Fill model.project. Deliberately omits who last saved the file (personal data)."""
+def collect_project(project, model, paths=None):
+    """Fill model.project. Deliberately omits who last saved the file (personal data).
+
+    `paths` (core.paths.PathStyle): with relative paths the project file is named only, with
+    absolute paths its full path is given."""
     path = project.fileName() or ""
     doc = ProjectDoc(
         title=project.title(),
         file_name=os.path.basename(path),
-        file_path=path,
+        file_path=(path if paths is None or paths.mode == "absolute" else os.path.basename(path)),
         qgis_version_saved=project.lastSaveVersion().text(),
         saved_at=_iso(project.lastSaveDateTime()),
         crs=crs_doc(project.crs()),
@@ -31,7 +34,7 @@ def collect_project(project, model):
         distance_units=QgsUnitTypes.toString(project.distanceUnits()),
         area_units=QgsUnitTypes.toString(project.areaUnits()),
         path_storage=enum_name(project.filePathStorage()),
-        home_path=project.presetHomePath() or None,
+        home_path=(paths.show(project.presetHomePath()) if paths else project.presetHomePath()) or None,
         background_color=project.backgroundColor().name(),
         selection_color=project.selectionColor().name(),
         default_view_extent=rect_list(project.viewSettings().defaultViewExtent()),

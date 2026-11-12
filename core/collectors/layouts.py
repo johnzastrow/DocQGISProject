@@ -40,7 +40,8 @@ from qgis.PyQt.QtXml import QDomDocument
 from ..redact import redact_named_value
 from ..safe_paths import sanitize_name
 from ..xmlwalk import flatten, redact_dom
-from .common import enum_name, finite, rect_list, relative_to, safe_message
+from ..paths import PathStyle
+from .common import enum_name, finite, rect_list, safe_message
 from .styling import _expand, color_hex, data_defined, symbol_doc
 
 MAX_IMAGE_PIXELS = 16_000_000  # per rendered image (DoS bound)
@@ -134,7 +135,7 @@ def _display(item):
     return item.displayName() if item is not None else None
 
 
-def _path_doc(path, project_dir):
+def _path_doc(path, paths):
     if not path:
         return None
     if path.startswith(("http://", "https://", "base64:")):
@@ -144,7 +145,13 @@ def _path_doc(path, project_dir):
             "exists": None,
             "relative": None,
         }
-    return {"path": path, "embedded": False, "exists": os.path.exists(path), "relative": relative_to(path, project_dir)}
+    full = paths.absolute(path)
+    return {
+        "path": paths.show(path),  # as the `paths` option asks
+        "embedded": False,
+        "exists": os.path.exists(full),
+        "relative": PathStyle(paths.dir, "relative").show(path) if paths.dir else None,
+    }
 
 
 # --------------------------------------------------------------------------- item details
@@ -204,7 +211,7 @@ def _legend_entries(group, depth=0):
     return out
 
 
-def item_details(item, project_dir):
+def item_details(item, paths):
     """Type-specific settings for the common item types; {} for the rest (JSON has all XML)."""
     if isinstance(item, QgsLayoutItemMap):
         return _map_details(item)
@@ -247,7 +254,7 @@ def item_details(item, project_dir):
         }
     if isinstance(item, QgsLayoutItemPicture):
         return {
-            "source": _path_doc(item.picturePath(), project_dir),
+            "source": _path_doc(item.picturePath(), paths),
             "format": enum_name(item.mode()),
             "resize_mode": enum_name(item.resizeMode()),
             "north_arrow_map": _display(item.linkedMap()),
@@ -289,7 +296,7 @@ def item_details(item, project_dir):
     return {}
 
 
-def item_doc(item, registry, project_dir):
+def item_doc(item, registry, paths):
     meta = registry.itemMetadata(item.type())
     pos, size = item.pagePositionWithUnits(), item.sizeWithUnits()
     return {
@@ -317,7 +324,7 @@ def item_doc(item, registry, project_dir):
         "opacity": finite(item.itemOpacity(), 4),
         "blend_mode": enum_name(item.blendMode()).replace("CompositionMode_", ""),
         "data_defined": data_defined(item.dataDefinedProperties(), QgsLayoutObject.propertyDefinitions()),
-        "details": item_details(item, project_dir),
+        "details": item_details(item, paths),
         "properties": _item_xml_properties(item),
         "image": None,
     }
@@ -440,7 +447,7 @@ def _render_images(layout, doc, items_by_uuid, sink, stem, dpi, model):
             atlas.endRender()
 
 
-def print_layout_doc(layout, model, options, sink, stem, project_dir):
+def print_layout_doc(layout, model, options, sink, stem, paths):
     registry = QgsApplication.layoutItemRegistry()
     pages = layout.pageCollection()
     doc = {
@@ -475,7 +482,7 @@ def print_layout_doc(layout, model, options, sink, stem, project_dir):
     by_uuid = {}
     for item in items:
         try:
-            d = item_doc(item, registry, project_dir)
+            d = item_doc(item, registry, paths)
         except Exception as exc:  # principle 7
             d = {
                 "uuid": item.uuid(),
@@ -563,6 +570,7 @@ def _save_template(layout, sink, stem, redact, ext):
 
 def collect_layouts(project, model, options, sink, feedback=None):
     project_dir = os.path.dirname(project.fileName()) if project.fileName() else None
+    paths = PathStyle(project_dir, options.paths)
     for n, layout in enumerate(project.layoutManager().layouts(), 1):
         if feedback is not None and feedback.isCanceled():
             return False
@@ -572,7 +580,7 @@ def collect_layouts(project, model, options, sink, feedback=None):
                 doc = report_doc(layout)
                 doc["template"] = _save_template(layout, sink, stem, options.redact, "xml")
             else:
-                doc = print_layout_doc(layout, model, options, sink, stem, project_dir)
+                doc = print_layout_doc(layout, model, options, sink, stem, paths)
                 doc["template"] = _save_template(layout, sink, stem, options.redact, "qpt")
         except Exception as exc:  # principle 7
             model.add_problem("error", "layouts", f"Layout '{layout.name()}' could not be read: {safe_message(exc)}")

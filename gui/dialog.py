@@ -145,6 +145,18 @@ class DocumentDialog(QDialog):
         row.addWidget(self.images)
         row.addWidget(self.dpi)
         ol.addRow(row)
+        self.paths = QComboBox()
+        self.paths.addItem(tr("Relative to the project folder (./data, ../data)"), "relative")
+        self.paths.addItem(tr("Full paths"), "absolute")
+        self.paths.setToolTip(
+            tr(
+                "How file paths are written in the reports and the JSON: the project file, data sources, "
+                "SVG and image files and the rebuild data. Relative paths keep your folder names private and "
+                "stay valid when the whole folder moves. Full paths show exactly where each file is on this "
+                "computer."
+            )
+        )
+        ol.addRow(tr("Paths"), self.paths)
         self.embed = QCheckBox(tr("Put SVG and image files used by the project inside the JSON"))
         self.embed.setToolTip(tr("So a rebuild elsewhere has them (up to 20 MB in total). Fonts are only listed."))
         self.load_data = QCheckBox(tr("Open local data for feature counts and extents"))
@@ -178,7 +190,11 @@ class DocumentDialog(QDialog):
         self.layer_list = QListWidget()
         self.layer_list.setToolTip(tr("Tick the layers whose properties dialog should be pictured."))
         self.layer_list.setMaximumHeight(110)
+        self.shots_note = QLabel("")
+        self.shots_note.setWordWrap(True)
+        self.shots_note.setToolTip(tr("Why screenshots are not available with the current choices."))
         shl.addWidget(self.shots)
+        shl.addWidget(self.shots_note)
         shl.addWidget(self.layer_list)
         main.addWidget(shots)
 
@@ -244,6 +260,7 @@ class DocumentDialog(QDialog):
         self.network.setChecked(_bool(s.value(KEY + "include_network_layers"), d.include_network_layers))
         self.overwrite.setChecked(_bool(s.value(KEY + "overwrite"), d.overwrite))
         self._select(self.shots, s.value(KEY + "screenshots", d.screenshots))
+        self._select(self.paths, s.value(KEY + "paths", d.paths))
         self._fill_layers()
 
     def _save_settings(self):
@@ -261,6 +278,7 @@ class DocumentDialog(QDialog):
         s.setValue(KEY + "include_network_layers", self.network.isChecked())
         s.setValue(KEY + "overwrite", self.overwrite.isChecked())
         s.setValue(KEY + "screenshots", self.shots.currentData())
+        s.setValue(KEY + "paths", self.paths.currentData())
 
     @staticmethod
     def _select(combo, value):
@@ -313,6 +331,7 @@ class DocumentDialog(QDialog):
             self.redact,
             self.network,
             self.overwrite,
+            self.paths,
             *self.fmt_boxes.values(),
         ):
             w.setEnabled(idle)
@@ -321,6 +340,18 @@ class DocumentDialog(QDialog):
         shots_possible = idle and open_project and self.images.isChecked()
         self.shots.setEnabled(shots_possible)
         self.layer_list.setEnabled(shots_possible and self.shots.currentData() == "layers")
+        # Say why the screenshot choice is greyed out, instead of leaving a silent disabled box.
+        if not open_project:
+            note = tr(
+                "Screenshots need the project open in QGIS: open the project file, then choose "
+                "'The open project' above."
+            )
+        elif not self.images.isChecked():
+            note = tr("Screenshots need 'Images of styles, maps and layouts' turned on.")
+        else:
+            note = ""
+        self.shots_note.setText(note)
+        self.shots_note.setVisible(bool(note))
         ready = bool(self._formats()) and bool(self.out_folder.filePath())
         if not open_project:
             ready = ready and self.project_file.filePath().lower().endswith((".qgz", ".qgs"))
@@ -339,6 +370,7 @@ class DocumentDialog(QDialog):
             images=self.images.isChecked(),
             image_dpi=self.dpi.value(),
             embed_resources=self.embed.isChecked(),
+            paths=self.paths.currentData(),
             load_data=self.load_data.isChecked(),
             redact=self.redact.isChecked(),
             include_network_layers=self.network.isChecked(),

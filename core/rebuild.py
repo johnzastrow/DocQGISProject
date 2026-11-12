@@ -9,8 +9,8 @@ The JSON is untrusted input (design section 9). The rebuilder therefore
 - validates the whole document first (core/schema.py) and refuses anything unexpected;
 - never runs code: project macros, Python form-init code, project expression functions and
   Python layer actions are removed, and each removal is reported;
-- refuses absolute data paths the user has not mapped (relative paths are resolved by QGIS
-  against the new project, exactly as in the original);
+- refuses absolute data paths the user has not mapped, unless allow_absolute is set (relative
+  paths are resolved by QGIS against the new project, exactly as in the original);
 - never overwrites: the target .qgz and its "<name>_files" folder must not exist;
 - writes embedded SVG/images only into "<name>_files", under validated names, and points the
   project at them;
@@ -74,17 +74,18 @@ def _with_authcfg(uri, provider, cfg):
     return f"{uri} authcfg={cfg}".strip()
 
 
-def _resolve_source(src, source_map, auth_map, result):
+def _resolve_source(src, source_map, auth_map, result, allow_absolute=False):
     """The data source to write for one source entry."""
     provider, uri = src["provider"], src["uri"]
     info = src.get("file") or {}
     path = info.get("path") or ""
     if src["kind"] == "file" and path:
         new_path, mapped = map_path(path, source_map)
-        if not mapped and is_absolute(path):
+        if not mapped and is_absolute(path) and not allow_absolute:
             raise RebuildError(
                 f"source {src['id']} uses the absolute path {path!r}; map it with source_map "
-                f"(for example {{'{os.path.dirname(path)}': '<folder on this machine>'}})"
+                f"(for example {{'{os.path.dirname(path)}': '<folder on this machine>'}}), or allow "
+                "absolute paths if you trust this JSON and the data are at those paths"
             )
         if new_path != path:
             parts = QgsProviderRegistry.instance().decodeUri(provider, uri) or {}
@@ -212,8 +213,13 @@ def _parse_xml(xml):
     return doc
 
 
-def rebuild_project(json_or_path, output_path, source_map=None, auth_map=None, feedback=None):
-    """Write a new .qgz from a DocQGISProject JSON document. Returns a RebuildResult."""
+def rebuild_project(json_or_path, output_path, source_map=None, auth_map=None, feedback=None, allow_absolute=False):
+    """Write a new .qgz from a DocQGISProject JSON document. Returns a RebuildResult.
+
+    allow_absolute: accept absolute data paths that no source_map entry covers (a JSON written
+    with paths="absolute", rebuilt where the data are). Off by default: an untrusted JSON could
+    otherwise point layers anywhere on this machine.
+    """
     source_map, auth_map = _check_maps(source_map, auth_map)
     output_path = os.path.abspath(str(output_path))
     if not output_path.lower().endswith(".qgz"):
@@ -242,7 +248,7 @@ def rebuild_project(json_or_path, output_path, source_map=None, auth_map=None, f
         feedback.setProgress(20)
 
     # Sources: resolve every marker (validated to be declared) before writing anything.
-    resolved = {s["id"]: _resolve_source(s, source_map, auth_map, result) for s in rb["sources"]}
+    resolved = {s["id"]: _resolve_source(s, source_map, auth_map, result, allow_absolute) for s in rb["sources"]}
     markers = {SOURCE_MARKER.format(id=sid): uri for sid, uri in resolved.items()}
     for el in _elements(doc.documentElement()):
         if el.tagName() == "datasource" and el.text() in markers:

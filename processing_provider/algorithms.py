@@ -29,10 +29,12 @@ from qgis.PyQt.QtCore import QCoreApplication
 
 from ..core.collectors.common import safe_message
 from ..core.options import ALL_FORMATS, DETAIL_LEVELS, SCREENSHOT_SCOPES, DocOptions
+from ..core.paths import PATH_MODES
 from ..core.uri_text import parse_map_arg
 
 FORMAT_LABELS = ("JSON (machine, rebuild-grade)", "Markdown report", "HTML report", "PDF report")
 DETAIL_LABELS = ("Summary", "Standard", "Full (every setting, Tier B appendix)")
+PATH_LABELS = ("Relative to the project folder", "Full paths")
 SCREENSHOT_LABELS = ("None", "Project dialogs", "Project and chosen layers", "Project and all layers")
 
 
@@ -58,6 +60,7 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
     IMAGE_DPI = "IMAGE_DPI"
     SCREENSHOTS = "SCREENSHOTS"
     EMBED_RESOURCES = "EMBED_RESOURCES"
+    PATHS = "PATHS"
     LOAD_DATA = "LOAD_DATA"
     REDACT = "REDACT"
     INCLUDE_NETWORK_LAYERS = "INCLUDE_NETWORK_LAYERS"
@@ -82,6 +85,8 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
             "Leave the project file empty to document the open project. A project file is read on its own, "
             "without changing the open project, and its data are not opened from web services or databases "
             "unless you allow it.\n\n"
+            "Paths are written relative to the project folder (./, ../) unless you choose full paths: the "
+            "project file, data sources, SVG and image files and the rebuild data.\n\n"
             "Credentials are removed from every output unless you turn redaction off. Existing files in the "
             "output folder are never replaced unless this tool wrote them or you allow it.\n\n"
             "Dialog screenshots are only available from the Project > Document Project dialog."
@@ -138,6 +143,11 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterEnum(
+                self.PATHS, tr("Paths in the documentation"), options=[tr(x) for x in PATH_LABELS], defaultValue=0
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterBoolean(
                 self.EMBED_RESOURCES, tr("Embed SVG and image files used by the project in the JSON"), True
             )
@@ -175,6 +185,7 @@ class DocumentProjectAlgorithm(QgsProcessingAlgorithm):
             images=self.parameterAsBoolean(parameters, self.IMAGES, context),
             image_dpi=self.parameterAsInt(parameters, self.IMAGE_DPI, context),
             embed_resources=self.parameterAsBoolean(parameters, self.EMBED_RESOURCES, context),
+            paths=PATH_MODES[self.parameterAsEnum(parameters, self.PATHS, context)],
             load_data=self.parameterAsBoolean(parameters, self.LOAD_DATA, context),
             redact=self.parameterAsBoolean(parameters, self.REDACT, context),
             include_network_layers=self.parameterAsBoolean(parameters, self.INCLUDE_NETWORK_LAYERS, context),
@@ -216,6 +227,7 @@ class RebuildProjectAlgorithm(QgsProcessingAlgorithm):
     OUTPUT = "OUTPUT"
     SOURCE_MAP = "SOURCE_MAP"
     AUTH_MAP = "AUTH_MAP"
+    ALLOW_ABSOLUTE = "ALLOW_ABSOLUTE"
 
     def name(self):
         return "rebuildproject"
@@ -264,6 +276,13 @@ class RebuildProjectAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterString(self.AUTH_MAP, tr("Authentication mapping (s3=configid;...)"), optional=True)
         )
         self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.ALLOW_ABSOLUTE,
+                tr("Allow absolute data paths without a mapping (only for a JSON you trust)"),
+                False,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFileDestination(self.OUTPUT, tr("New project"), fileFilter=tr("QGIS project (*.qgz)"))
         )
         self.addOutput(QgsProcessingOutputString("NEEDS_CREDENTIALS", tr("Sources that need credentials")))
@@ -280,6 +299,7 @@ class RebuildProjectAlgorithm(QgsProcessingAlgorithm):
                 source_map=source_map,
                 auth_map=auth_map,
                 feedback=feedback,
+                allow_absolute=self.parameterAsBoolean(parameters, self.ALLOW_ABSOLUTE, context),
             )
         except (RebuildError, ValueError, OSError) as exc:
             raise QgsProcessingException(safe_message(exc)) from exc

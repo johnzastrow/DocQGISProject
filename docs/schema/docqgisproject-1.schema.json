@@ -95,6 +95,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "paths": {
+          "enum": [
+            "relative",
+            "absolute"
+          ]
         }
       }
     },

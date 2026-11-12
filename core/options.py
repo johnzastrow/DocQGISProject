@@ -6,6 +6,8 @@ Strict allowlist validation: unknown formats or levels are rejected, never coerc
 
 from dataclasses import asdict, dataclass
 
+from .paths import PATH_MODES
+
 ALL_FORMATS = ("json", "markdown", "html", "pdf")
 IMPLEMENTED_FORMATS = ALL_FORMATS
 DETAIL_LEVELS = ("summary", "standard", "full")
@@ -25,6 +27,7 @@ class DocOptions:
     overwrite: bool = False  # replace files in the output folder not written by this plugin
     images: bool = True  # legend and symbol images
     image_dpi: int = 120  # 48 to 600
+    paths: str = "relative"  # "relative" to the project folder, or "absolute" (full paths); core/paths.py
     embed_resources: bool = True  # SVG and images used by styles and layouts inside the JSON
     screenshots: str = "none"  # see SCREENSHOT_SCOPES; ignored outside the QGIS window
     screenshot_layers: tuple = ()  # layer ids for screenshots == "layers"
@@ -43,6 +46,8 @@ class DocOptions:
             raise ValueError(f"unknown detail level {self.detail!r}; allowed: {list(DETAIL_LEVELS)}")
         if isinstance(self.image_dpi, bool) or not isinstance(self.image_dpi, int) or not 48 <= self.image_dpi <= 600:
             raise ValueError("image_dpi must be a whole number from 48 to 600")
+        if self.paths not in PATH_MODES:
+            raise ValueError(f"unknown path style {self.paths!r}; allowed: {list(PATH_MODES)}")
         if self.screenshots not in SCREENSHOT_SCOPES:
             raise ValueError(f"unknown screenshot scope {self.screenshots!r}; allowed: {list(SCREENSHOT_SCOPES)}")
         layers = tuple(self.screenshot_layers or ())

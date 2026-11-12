@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- 2026-11-11: Paths are now written relative to the project folder by default, including paths
+  outside it (`../data/x.gpkg`); before, a path outside the project folder was shown in full.
 - 2026-11-11: New plugin icon: the eye from the DocQGISProject logo, with a white outline so it
   stays readable on dark themes. The logo itself is in `docs/logo.png` and, traced with Inkscape,
   `docs/logo.svg`.
@@ -17,6 +19,17 @@ All notable changes to this project are documented here. The format follows
   usually 644), like any file the user saves. Atomic writes had left them owner-only (600).
 
 ### Added
+
+- 2026-11-11: Option `paths` (dialog "Paths", Processing "Paths in the documentation"):
+  `relative` (default) or `absolute`. Relative: every path relative to the project folder, the
+  project file named only; a final pass also rewrites the absolute paths QGIS stores itself
+  (symbol SVG paths, atlas and table layer sources, GPS settings) in the JSON, the reports and
+  the QML/QPT files, so no home-folder path appears anywhere. Absolute: full paths everywhere,
+  the project file's full path included, and the rebuild data rewritten to full paths.
+- 2026-11-11: Rebuilder `allow_absolute` (Processing "Allow absolute data paths without a
+  mapping") for a full-path JSON rebuilt where the data are. Off by default.
+- 2026-11-11: The dialog says why dialog screenshots are unavailable (a project file is chosen,
+  or images are off) instead of only greying out the choice.
 
 - 2026-11-11: P6 dialog and Processing.
   - *Project > Document Project...* opens a dialog with every option (each with a tooltip, all

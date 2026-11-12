@@ -149,6 +149,18 @@ Read this first after a restart. Then read `docs/DESIGN.md` (draft 2, accepted w
     DontResolveLayers as dirty); the runner now passes `unsaved=False` for files it read itself.
   - Fixed: `make lint` now matches CI (pinned ruff, `ruff format --check`, which also formats Python
     blocks in Markdown). P6's push failed CI on the README for this reason; fixed in the next commit.
+  - Option `paths` (relative default / absolute): `core/paths.py` (PathStyle.show/text, restyle; pure,
+    unit-tested incl. Windows). Relative: targeted conversion plus a final `restyle(model)` and
+    `sink.restyle_text` pass in the runner, because QGIS hands out resolved absolute paths (symbol SVGs) and
+    stores some itself (atlas coverageLayerSource, attribute-table vectorLayerSource, GPS
+    destinationLayerSource). Absolute: `rebuild_payload._absolute_paths`. Rebuilder `allow_absolute`.
+  - Real-project test (owner's files, /home/jcz/Forge/gpmct_basemap/qgis/, outputs kept in scratch only):
+    both projects documented in both modes (97 and 105 files, 8 s and 30 s); relative mode leaves no
+    `/home/jcz` in any file incl. PDF. Wildlands round trip (gpmct_print): rebuilt from the absolute JSON
+    (allow_absolute) and from the relative JSON (source_map ".." to the project root): 29/29 layers valid,
+    "Wildlands Trail Map" page renders 0.000 % different at 40 dpi.
+  - Owner's first click test found no screenshots: they documented a project file (screenshots need the
+    open project). The dialog now says so.
 - Next: P7 (release: GUI click test of the dialog and the real screenshot mechanics in QGIS 4, `qgis_process`
   smoke test, human review of a real report, the Wildlands print project round trip, README screenshots,
   version 0.1.0, tag, plugins.qgis.org upload).

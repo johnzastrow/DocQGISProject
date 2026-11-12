@@ -41,6 +41,25 @@ class ArtifactSink:
     def add_text(self, name, text):
         return self._add(name, text.encode("utf-8"))
 
+    TEXT_SUFFIXES = (".qml", ".qpt", ".xml", ".txt", ".md", ".json", ".svg")
+
+    def restyle_text(self, convert):
+        """Apply convert(str) -> str to every text artifact (QML, QPT, ...). Used to make paths
+        relative after collection. Sizes are recomputed; the budget is not re-checked (paths only
+        get shorter or stay the same in practice)."""
+        for name, data in list(self.files.items()):
+            if not name.lower().endswith(self.TEXT_SUFFIXES):
+                continue
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            new = convert(text)
+            if new != text:
+                encoded = new.encode("utf-8")
+                self.size += len(encoded) - len(data)
+                self.files[name] = encoded
+
     def add_png(self, name, image):
         """Encode a QImage as PNG. Returns the name, or None when images are off or it failed."""
         if not self.images or image is None or image.isNull():
