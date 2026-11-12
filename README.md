@@ -6,7 +6,7 @@ A QGIS 4 plugin that documents a QGIS project for two audiences from one run:
   rendered layout pages, symbols and legends.
 - **Machines:** a schema-versioned JSON file complete enough to rebuild the project programmatically.
 
-**Status: development (phase P6 of 7).** Everything in the design works; the release work (P7) remains.
+**Status: 0.1.0, experimental.** See [`CHANGELOG.md`](CHANGELOG.md); versions follow semver ([`docs/RELEASING.md`](docs/RELEASING.md)).
 
 What one run writes:
 
